@@ -29,7 +29,7 @@ export default function Users() {
         <button className="btn primary" onClick={() => { setSel(null); setFormOpen(true); }}>+ Add user</button>
       </div>
       {reqs.length > 0 && <div className="card">
-        <h2>Waiting for access <small>people who created a login and asked to join</small></h2>
+        <h2>Waiting for access <small>logins that signed in but have no access yet</small></h2>
         {reqs.map(r => <Request key={r.id} r={r} onApprove={approve} />)}
       </div>}
       <div className="emp-grid">
@@ -48,7 +48,7 @@ export default function Users() {
         </div>
         <div className="card">
           {formOpen ? <UserForm key={sel || "new"} u={sel ? D.users.get(sel) : null} onDone={() => { setFormOpen(false); setSel(null); }} />
-            : <><h2>User details</h2><p className="hint" style={{ margin: 0 }}>Choose a person to change what they can open, or press <b>Add user</b>. People can also create their own login on the sign-in page; they then appear under “Waiting for access”.</p></>}
+            : <><h2>User details</h2><p className="hint" style={{ margin: 0 }}>Choose a person to change what they can open, or press <b>Add user</b>. Logins made directly in the Firebase console appear under “Waiting for access” until you approve them here.</p></>}
         </div>
       </div>
     </>
@@ -104,7 +104,7 @@ function UserForm({ u, onDone }) {
       onDone();
     } catch (e) {
       setBusy(false);
-      setMsg(e?.code === "auth/email-already-in-use" ? "This email already has a login. Ask them to sign in once; they will then appear under “Waiting for access” for you to approve."
+      setMsg(e?.code === "auth/email-already-in-use" ? "This email already has a login (maybe made in the Firebase console). Ask them to sign in once; they will then appear under “Waiting for access” for you to approve."
         : e?.code === "auth/weak-password" ? "Choose a longer password." : isDenied(e) ? "Only admins can manage users." : "Could not save. Try again.");
     }
   }

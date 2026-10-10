@@ -30,7 +30,7 @@ cp .env.local.example .env.local   # then paste the six Firebase values into .en
 npm run dev                        # http://localhost:3000
 ```
 
-The **first person to sign in** on a fresh project sees **Set me up as owner** and becomes the admin. After that, new logins wait on the Users page until an admin gives them access.
+**Create the owner login:** Firebase console → **Authentication → Users → Add user** (your email and a password). Then sign in to the app with it: the **first person to sign in** on a fresh project becomes the owner (admin) automatically. There is no sign-up on the sign-in page; the owner adds everyone else from the **Users** page.
 
 To try the app without Firebase, run `npm run dev:demo` (<http://localhost:3001>). It uses made-up example data stored only in your browser.
 
@@ -54,7 +54,8 @@ To try the app without Firebase, run `npm run dev:demo` (<http://localhost:3001>
 
 - **Add user** creates the login with a temporary password; give it to the person. **Send password reset** emails them a link.
 - **Remove access** or unticking **Can sign in** stops a person at once. To delete the login itself, use Firebase console → Authentication.
-- People can also press **New here? Create a login** on the sign-in page; they then appear under **Waiting for access** for an admin to approve.
+- There is no self sign-up. A login made directly in the Firebase console appears under **Waiting for access** after its first sign-in, for an admin to approve.
+- Keep **Authentication → Settings → User actions → Enable create (sign-up)** switched on: the Users page needs it to create logins. Strangers who sign up through the API get no access, because the rules only open the book to people with a profile.
 
 ## Data (Firestore collections)
 

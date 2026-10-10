@@ -84,7 +84,6 @@ export const isDenied = e => e?.code === "permission-denied";
 
 export const onAuth = cb => { authCb = cb; setTimeout(() => cb(signedIn ? ME : null), 30); return () => { authCb = null; }; };
 export const signIn = async () => { signedIn = true; authCb && authCb(ME); };
-export const signUp = async () => { signedIn = true; authCb && authCb(ME); };
 export const signOut = async () => { signedIn = false; authCb && authCb(null); };
 export const resetPassword = async () => {};
 export const claimOwner = async () => {};

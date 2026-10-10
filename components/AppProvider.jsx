@@ -46,10 +46,14 @@ export default function AppProvider({ children }) {
         }
         setMe(null);
         if (prof && prof.active === false) { setStatus("off"); return; }
-        // no profile yet: a fresh project lets the first person claim it, otherwise ask the owner
+        // no profile yet: on a fresh project the first person to sign in becomes the owner automatically
+        // (the profile listener above then picks up the new admin profile); otherwise they wait for an admin
         let setup = null;
         try { setup = await readDoc("meta", "setup"); } catch { setup = { unknown: true }; }
-        if (!setup) { setStatus("owner"); return; }
+        if (!setup) {
+          try { await claimOwner(u); return; }
+          catch { setStatus("owner"); return; } // shows a retry button with the reason
+        }
         setStatus("pending");
         saveDoc("requests", u.uid, { name: u.displayName || "", email: u.email, at: new Date().toISOString() }).catch(() => {});
       });
