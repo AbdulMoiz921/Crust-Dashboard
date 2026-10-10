@@ -334,3 +334,12 @@ td select{width:auto;padding:5px 8px}
   .tbl-wrap{overflow-x:visible}
   .money tbody tr td:first-child{color:var(--ink)}
 }
+
+/* page name under the brand, phones only */
+.page-name{display:none}
+@media (max-width:760px){
+  .brand{min-width:0}
+  .brand b{font-size:13px;color:var(--muted);font-weight:600}
+  .page-name{display:block;font-style:normal;font-family:var(--display);font-size:18px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bnav button span{font-size:11px;line-height:1.15;text-align:center}
+}

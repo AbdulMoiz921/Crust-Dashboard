@@ -14,7 +14,7 @@ import Users from "./pages/Users";
 import Workflow from "./pages/Workflow";
 
 const TABS = [
-  ["dash", "Dashboard", "Home"], ["entry", "Daily entry", "Entry"], ["emp", "Employees", "Staff"], ["close", "Month closing", "Closing"],
+  ["dash", "Dashboard", "Dashboard"], ["entry", "Daily entry", "Daily entry"], ["emp", "Employees", "Employees"], ["close", "Month closing", "Closing"],
   ["ven", "Vendors", "Vendors"], ["cap", "Capital", "Capital"], ["users", "Users", "Users"], ["flow", "Workflow", "Workflow"],
 ];
 // order of the phone's bottom bar: the first four pages this person can open, the rest under More
@@ -74,7 +74,7 @@ export default function AppShell() {
     <>
       <header className="top">
         <div className="top-in">
-          <div className="brand"><b>Crust House · Commercial</b><span>Riders, sale &amp; expense book</span></div>
+          <div className="brand"><b>Crust House · Commercial</b><span>Riders, sale &amp; expense book</span><em className="page-name">{tabInfo(current)?.[1]}</em></div>
           <div className="who">
             <div className="who-text"><b>{me.name || me.email}</b><span>{roleLabel(me.role)}</span></div>
             <button className="btn ghost who-out" onClick={() => signOut()}>Sign out</button>
