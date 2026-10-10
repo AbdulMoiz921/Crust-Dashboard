@@ -7,6 +7,8 @@ const demo = process.env.npm_lifecycle_event === "dev:demo";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // demo builds into its own folder, so running `next build` or `next dev` alongside it can't corrupt it
+  distDir: demo ? ".next-demo" : ".next",
   webpack(config, { webpack }) {
     if (demo) {
       const standIn = path.resolve("dev/firebase.demo.js");
