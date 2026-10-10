@@ -1,0 +1,85 @@
+rules_version = '2';
+
+// Crust House Cash Book — Firestore security rules.
+// Publish: Firebase console → Firestore Database → Rules → paste this file → Publish.
+//
+// Every person's access lives in users/{uid}: { role: "admin" | "manager" | "cashier" | "viewer" | "custom",
+// perms: { dash, entry, emp, close, ven, cap: "none" | "view" | "edit" }, active: bool }.
+// Admins can do everything; everyone else is limited page by page.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function profilePath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(profilePath()); }
+    function me() { return get(profilePath()).data; }
+    function active() { return hasProfile() && me().get('active', true) == true; }
+    function isAdmin() { return active() && me().role == 'admin'; }
+    function perm(page) { return me().get('perms', {}).get(page, 'none'); }
+    function canView(page) { return isAdmin() || (active() && perm(page) in ['view', 'edit']); }
+    function canEdit(page) { return isAdmin() || (active() && perm(page) == 'edit'); }
+
+    // ----- first-run owner claim -----
+    match /meta/setup {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ----- people and access -----
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // admins create profiles; the very first owner creates their own in the same batch as meta/setup
+      allow create: if isAdmin()
+        || (signedIn() && uid == request.auth.uid
+            && !exists(/databases/$(database)/documents/meta/setup)
+            && getAfter(/databases/$(database)/documents/meta/setup).data.ownerUid == request.auth.uid
+            && request.resource.data.role == 'admin');
+      // admins edit anyone, but cannot demote or switch off themselves; everyone may stamp their own last sign-in
+      allow update: if (isAdmin() && (uid != request.auth.uid || (request.resource.data.role == 'admin' && request.resource.data.active == true)))
+        || (signedIn() && uid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin']));
+      allow delete: if isAdmin() && uid != request.auth.uid;
+    }
+    // people who created a login and are waiting for an admin to approve them
+    match /requests/{uid} {
+      allow read, delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, update: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ----- the book -----
+    match /days/{id} {
+      allow read: if canView('dash') || canView('entry') || canView('close') || canView('emp');
+      allow write: if canEdit('entry') || canEdit('emp');   // Employees → Give advance writes the day too
+    }
+    match /employees/{id} {
+      allow read: if canView('emp') || canView('entry') || canView('close');
+      allow write: if canEdit('emp');
+    }
+    match /closings/{id} {
+      allow read: if active();
+      allow write: if canEdit('close');
+    }
+    match /vendors/{id} {
+      allow read: if canView('ven') || canView('dash') || canView('close');
+      allow write: if canEdit('ven');
+    }
+    match /vbills/{id} {
+      allow read: if canView('ven') || canView('dash') || canView('close');
+      allow write: if canEdit('ven');
+    }
+    match /vpays/{id} {
+      allow read: if canView('ven') || canView('dash') || canView('close');
+      allow write: if canEdit('ven');
+    }
+    match /capital/{id} {
+      allow read: if canView('cap') || canView('close');
+      allow write: if canEdit('cap');
+    }
+
+    // anything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

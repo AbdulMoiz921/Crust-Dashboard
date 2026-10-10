@@ -1,0 +1,25 @@
+{
+  "name": "crust-cashbook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Crust House Commercial cash book: daily sale, expenses, riders, employees, vendors, capital and month-end closing",
+  "scripts": {
+    "dev": "next dev",
+    "dev:demo": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "firebase": "10.12.2",
+    "mermaid": "10.9.1",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "xlsx": "0.18.5"
+  },
+  "devDependencies": {
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.15"
+  }
+}
