@@ -43,7 +43,7 @@ export default function Capital() {
           <div className="card">
             <h2>Capital entries <small>click an entry to edit it</small></h2>
             {list.length ? (
-              <div className="tbl-wrap"><table className="num"><thead><tr><th>Date</th><th>Type</th><th>Owner / partner</th><th>Details</th><th>Account</th><th>Amount</th></tr></thead>
+              <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Type</th><th>Owner / partner</th><th>Details</th><th>Account</th><th>Amount</th></tr></thead>
                 <tbody>{list.map(c => (
                   <tr key={c.id} className={"click" + (c.id === sel ? " sel" : "")} tabIndex={0} onClick={() => setSel(c.id)} onKeyDown={e => e.key === "Enter" && setSel(c.id)}>
                     <td>{nice(c.date)}<div className="sub">{parse(c.date).getFullYear()}</div></td>
@@ -57,7 +57,7 @@ export default function Capital() {
           <div className="card">
             <h2>By owner / partner</h2>
             {people.length ? <>
-              <div className="tbl-wrap"><table className="num"><thead><tr><th>Name</th><th>Invested</th><th>Share</th><th>Withdrawn</th><th>Net</th></tr></thead>
+              <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Name</th><th>Invested</th><th>Share</th><th>Withdrawn</th><th>Net</th></tr></thead>
                 <tbody>{people.map(([k, o]) => <tr key={k}><td>{k}</td><td>{fmt(o.in)}</td><td>{totIn ? Math.round(o.in / totIn * 100) + "%" : "—"}</td><td>{fmt(o.out)}</td><td><b>{fmt(o.in - o.out)}</b></td></tr>)}</tbody></table></div>
               <p className="hint">All time. Share is each person’s part of the total invested.</p>
             </> : <Empty>Partner totals appear once you add capital entries.</Empty>}

@@ -44,7 +44,7 @@ export default function Employees({ addAdvance }) {
         <div className="card">
           <h2>Staff and salary <small>click a name to see the account</small></h2>
           {list.length ? (
-            <div className="tbl-wrap"><table className="num"><thead><tr><th>Name</th><th>Salary</th><th>Advance</th><th>Remaining</th><th>Status</th></tr></thead>
+            <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Name</th><th>Salary</th><th>Advance</th><th>Remaining</th><th>Status</th></tr></thead>
               <tbody>{list.map(e => {
                 const r = rowById[e.id];
                 const open = () => { setSel(e.id); setFormOpen(false); };
@@ -166,7 +166,7 @@ function Account({ m, month, editable, addAdvance }) {
       </>}
       <h3 className="eyebrow" style={{ margin: "18px 0 8px" }}>Advance history</h3>
       {all.length ? (
-        <div className="tbl-wrap"><table className="num"><thead><tr><th>Date</th><th>Note</th><th>Amount</th></tr></thead><tbody>
+        <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Note</th><th>Amount</th></tr></thead><tbody>
           {Object.entries(byMonth).map(([mo, l]) => [
             ...l.map((x, i) => <tr key={mo + i}><td>{nice(x.date)}</td><td style={{ textAlign: "left" }}>{x.note}</td><td>{fmt(x.amt)}</td></tr>),
             <tr key={mo}><td><b>{monthName(mo)}</b></td><td></td><td><b>{fmt(l.reduce((s, x) => s + x.amt, 0))}</b></td></tr>,
@@ -175,7 +175,7 @@ function Account({ m, month, editable, addAdvance }) {
       ) : <p className="hint" style={{ margin: 0 }}>No advances yet.</p>}
       {hist.length > 0 && <>
         <h3 className="eyebrow" style={{ margin: "18px 0 8px" }}>Closed months</h3>
-        <div className="tbl-wrap"><table className="num"><thead><tr><th>Month</th><th>Salary</th><th>Advances</th><th>Paid at close</th><th></th></tr></thead><tbody>
+        <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Month</th><th>Salary</th><th>Advances</th><th>Paid at close</th><th></th></tr></thead><tbody>
           {hist.map(h => { const y = h.rows.find(z => z.id === m.id); return <tr key={h.month}><td>{monthName(h.month)}</td><td>{fmt(y.base)}</td><td>{fmt(y.adv)}</td><td>{fmt(y.paid ? Math.max(0, y.net) : 0)}</td><td><StatusPill r={y} /></td></tr>; })}
         </tbody></table></div>
       </>}

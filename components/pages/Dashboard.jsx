@@ -51,7 +51,7 @@ export default function Dashboard({ openDay }) {
 
   return (
     <>
-      <TodayStrip openDay={openDay} />
+      <TodayStrip />
 
       <div className="card filters">
         <div className="seg">
@@ -94,7 +94,7 @@ export default function Dashboard({ openDay }) {
           </>}
           {(S.sale || S.exp || S.vpTot) ? <>
             <h3 className="eyebrow" style={{ margin: "18px 0 6px" }}>Left in each account</h3>
-            <div className="tbl-wrap"><table className="num"><thead><tr><th></th><th>Received</th><th>Expenses</th>{S.vpTot ? <th>Vendors</th> : null}<th>Left</th></tr></thead><tbody>
+            <div className="tbl-wrap"><table className="num cards"><thead><tr><th></th><th>Received</th><th>Expenses</th>{S.vpTot ? <th>Vendors</th> : null}<th>Left</th></tr></thead><tbody>
               {[["Cash", S.cash, "cash"], ["Bank", S.bank, "bank"], ["EasyPaisa", S.ep, "easypaisa"]].map(([l, v, k]) => {
                 const left = v - S.out[k] - S.vp[k];
                 return <tr key={k}><td>{l}</td><td>{fmt(v)}</td><td>{fmt(S.out[k])}</td>{S.vpTot ? <td>{fmt(S.vp[k])}</td> : null}<td className={left < 0 ? "neg" : ""}><b>{fmt(left)}</b></td></tr>;
@@ -114,7 +114,7 @@ export default function Dashboard({ openDay }) {
         <div className="card">
           <h2>Riders <small>orders, amount collected, bike km</small></h2>
           {S.riders.length ? (
-            <div className="tbl-wrap"><table className="num"><thead><tr><th>Rider</th><th>Days</th><th>Orders</th><th>Collected</th><th>Km</th><th>Petrol</th></tr></thead>
+            <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Rider</th><th>Days</th><th>Orders</th><th>Collected</th><th>Km</th><th>Petrol</th></tr></thead>
               <tbody>{S.riders.map(([k, o]) => <tr key={k}><td>{k}</td><td>{o.days}</td><td>{o.orders}</td><td>{fmt(o.amt)}</td><td>{o.km.toLocaleString()}</td><td>{fmt(o.petrol)}</td></tr>)}</tbody>
               <tfoot><tr><td>Total</td><td></td>
                 <td>{S.riders.reduce((a, [, o]) => a + o.orders, 0)}</td><td>{fmt(S.riders.reduce((a, [, o]) => a + o.amt, 0))}</td>
@@ -127,7 +127,7 @@ export default function Dashboard({ openDay }) {
       <div className="card">
         <h2>Day by day <small>click a day to open or edit it</small></h2>
         {recs.length ? (
-          <div className="tbl-wrap"><table className="num"><thead><tr><th>Date</th><th>Cash</th><th>Bank</th><th>EasyPaisa</th><th>Total sale</th><th>Expense</th><th>Sale − exp.</th></tr></thead>
+          <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Cash</th><th>Bank</th><th>EasyPaisa</th><th>Total sale</th><th>Expense</th><th>Sale − exp.</th></tr></thead>
             <tbody>{recs.slice().reverse().map(r => {
               const s = saleOf(r), e = expOf(r);
               return <tr key={r.date} className="click" tabIndex={0} onClick={() => openDay(r.date)} onKeyDown={ev => ev.key === "Enter" && openDay(r.date)}>
@@ -141,21 +141,21 @@ export default function Dashboard({ openDay }) {
   );
 }
 
-function TodayStrip({ openDay }) {
+function TodayStrip() {
   const { D, toast } = useApp();
   const t = today(), r = D.days.get(t);
   const s = r ? saleOf(r) : 0, e = r ? expOf(r) : 0, c = +r?.sale?.cash || 0, pp = r ? petrolDay(r) : 0;
   const inHand = r ? leftBySrc(r, D.vpays).cash : -vpayBySrc(D.vpays, t, t).cash;
+  // eight tiles so the strip fills evenly: 8 across on desktop, 4 on tablets, 2 on phones
   const cells = [
     ["Total sale", s, "hl"], ["Cash", c, "", "--cash"], ["Bank", +r?.sale?.bank || 0, "", "--bank"], ["EasyPaisa / JazzCash", +r?.sale?.easypaisa || 0, "", "--ep"],
-    ["Total expense", e, "hl"], ["Rider petrol", pp], ["Sale − expense", s - e], ["Cash in hand", inHand], ["Owed to vendors", totalOwed(D)],
+    ["Total expense", e, "hl"], ["Rider petrol", pp], ["Sale − expense", s - e], ["Cash in hand", inHand],
   ];
   return (
     <div className="card today">
       <div className="today-head">
-        <h2>Today</h2><span className="s">{niceLong(t)}{r ? "" : " · not entered yet"}</span>
+        <h2>Today</h2><span className="s">{niceLong(t)}{r ? "" : " · not entered yet in Daily entry"}</span>
         <button className="btn xl" disabled={!r} onClick={() => exportRange(D, [r], t, t, `Crust-House-${t}.xlsx`).then(() => toast("Excel file downloaded"))}>Excel</button>
-        <button className="btn primary" onClick={() => openDay(t)}>{r ? "Edit today" : "Enter today’s sale"}</button>
       </div>
       <div className="today-grid num">
         {cells.map(([l, v, cls, sw]) => (

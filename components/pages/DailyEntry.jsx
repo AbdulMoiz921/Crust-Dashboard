@@ -96,6 +96,10 @@ export default function DailyEntry({ navReq, injectReq }) {
   const s = saleOf(draft), e = expOf(draft), p = petrolDay(draft);
   const x = expBySrc(draft), l = leftBySrc(draft, D.vpays), v = vpayBySrc(D.vpays, draft.date, draft.date), vt = v.cash + v.bank + v.easypaisa;
   const km = draft.riders.reduce((a, r) => a + kmOf(r), 0);
+  // the last 14 days with no entry, counted only from the first day ever recorded
+  const first = [...D.days.keys()].sort()[0];
+  const missed = [];
+  if (first) for (let i = 14; i >= 1; i--) { const d = addDays(today(), -i); if (d >= first && !D.days.has(d)) missed.push(d); }
   const updatedText = D.days.get(draft.date)?.updatedAt ? "Saved · " + new Date(D.days.get(draft.date).updatedAt).toLocaleString("en-PK", { hour: "numeric", minute: "2-digit", day: "numeric", month: "short" }) : exists ? "Saved" : "New day, not saved yet";
   const petrolCalc = r => {
     if (r.petrolAuto === false) return "Entered by hand";
@@ -122,7 +126,13 @@ export default function DailyEntry({ navReq, injectReq }) {
           if (!rec) return toast("This day is empty. Fill it in first.");
           exportRange(D, [rec], rec.date, rec.date, `Crust-House-${rec.date}${dirty ? "-unsaved" : ""}.xlsx`).then(() => toast("Excel file downloaded"));
         }}>Export day</button>
-        {canWrite && <button className="btn primary" onClick={save} disabled={saving}>Save day</button>}
+        {canWrite && <button className="btn primary desk-save" onClick={save} disabled={saving}>Save day</button>}
+        {missed.length > 0 && (
+          <div className="missed">
+            <span className="sub">Missed days:</span>
+            {missed.map(d => <button key={d} className={"chip" + (d === draft.date ? " on" : "")} aria-pressed={d === draft.date} onClick={() => openDay(d)}>{nice(d)}</button>)}
+          </div>
+        )}
       </div>
 
       <div className="entry-grid">
@@ -245,6 +255,12 @@ export default function DailyEntry({ navReq, injectReq }) {
           </div>}
         </aside>
       </div>
+
+      {/* phones: totals and Save stay reachable at the bottom while scrolling the form */}
+      {canWrite && <div className="savebar">
+        <div><span>{nice(draft.date)} · {dirty ? "unsaved" : exists ? "saved" : "new"}</span><b>Sale {fmt(s)} · Exp {fmt(e)}</b></div>
+        <button className="btn primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+      </div>}
     </>
   );
 }

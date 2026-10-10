@@ -77,7 +77,7 @@ export default function Vendors() {
           <div className="card">
             <h2>What we owe <small>click a vendor to see their bills and payments</small></h2>
             {rows.length ? (
-              <div className="tbl-wrap"><table className="num"><thead><tr><th>Vendor</th><th>Total bills</th><th>Paid</th><th>We owe</th><th>Last entry</th></tr></thead>
+              <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Vendor</th><th>Total bills</th><th>Paid</th><th>We owe</th><th>Last entry</th></tr></thead>
                 <tbody>{rows.map(({ v, b }) => (
                   <tr key={v.id} className={"click" + (v.id === sel ? " sel" : "")} tabIndex={0} onClick={() => choose(v.id)} onKeyDown={e => e.key === "Enter" && choose(v.id)}>
                     <td><b>{v.name}</b><div className="sub">{v.cat || ""}{v.phone ? " · " + v.phone : ""}</div></td><td>{fmt(b.billed)}</td><td>{fmt(b.paid)}</td>
@@ -186,7 +186,7 @@ function Ledger({ v, editable, isClosed, onEdit }) {
         <span className="grow">We owe <b className={b.owed > 0 ? "neg" : ""} style={{ fontSize: 18 }}>{fmt(b.owed)}</b></span>
         {editable && <button className="btn" onClick={onEdit}>Edit vendor</button>}
       </div>
-      <div className="tbl-wrap"><table className="num"><thead><tr><th>Date</th><th>Entry</th><th>Details</th><th>Bill</th><th>Paid</th><th>Balance</th><th></th></tr></thead><tbody>
+      <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Entry</th><th>Details</th><th>Bill</th><th>Paid</th><th>Balance</th><th></th></tr></thead><tbody>
         {+v.openingDue ? <tr><td>—</td><td style={{ textAlign: "left" }}>Old balance</td><td></td><td>{fmt(v.openingDue)}</td><td></td><td>{fmt(v.openingDue)}</td><td></td></tr> : null}
         {ent.map(e => (
           <tr key={e.kind + e.id}><td>{nice(e.date)}</td><td style={{ textAlign: "left" }}>{e.label}</td><td style={{ textAlign: "left", whiteSpace: "normal" }}>{e.desc}</td>

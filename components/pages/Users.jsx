@@ -36,7 +36,7 @@ export default function Users() {
         <div className="card">
           <h2>People with access <small>click a person to change their access</small></h2>
           {list.length ? (
-            <div className="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th style={{ textAlign: "left" }}>Can open</th><th>Status</th><th>Last sign-in</th></tr></thead>
+            <div className="tbl-wrap"><table className="cards"><thead><tr><th>User</th><th>Role</th><th style={{ textAlign: "left" }}>Can open</th><th>Status</th><th>Last sign-in</th></tr></thead>
               <tbody>{list.map(u => (
                 <tr key={u.id} className={"click" + (u.id === sel ? " sel" : "")} tabIndex={0} onClick={() => { setSel(u.id); setFormOpen(true); }} onKeyDown={e => e.key === "Enter" && (setSel(u.id), setFormOpen(true))}>
                   <td><b>{u.name || u.email}</b>{u.id === me.uid && <span className="tag" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>you</span>}<div className="sub">{u.email}</div></td>

@@ -84,7 +84,7 @@ export default function MonthClosing() {
             <label className="field" key={k}>{l}<NumInput disabled={ro} value={o[k]} onChange={v => edit(n => { n.opening[k] = v === "" ? 0 : v; })} /></label>
           ))}
         </div>
-        <div className="tbl-wrap"><table className="num money"><thead><tr><th></th><th>Cash</th><th>Bank</th><th>EasyPaisa / JazzCash</th><th>Total</th></tr></thead><tbody>
+        <div className="tbl-wrap"><table className="num money cards"><thead><tr><th></th><th>Cash</th><th>Bank</th><th>EasyPaisa / JazzCash</th><th>Total</th></tr></thead><tbody>
           <tr><td>Opening balance</td><td>{fmt(o.cash)}</td><td>{fmt(o.bank)}</td><td>{fmt(o.easypaisa)}</td><td>{fmt((+o.cash || 0) + (+o.bank || 0) + (+o.easypaisa || 0))}</td></tr>
           <tr><td>+ Sale received</td><td>{money(f.cash, "+ ")}</td><td>{money(f.bank, "+ ")}</td><td>{money(f.ep, "+ ")}</td><td>{money(f.sale, "+ ")}</td></tr>
           <tr><td>+ Capital invested</td><td>{money(f.capIn.cash, "+ ")}</td><td>{money(f.capIn.bank, "+ ")}</td><td>{money(f.capIn.easypaisa, "+ ")}</td><td>{money(sum3(f.capIn), "+ ")}</td></tr>
@@ -100,7 +100,7 @@ export default function MonthClosing() {
       <div className="card">
         <h2>Salary sheet <small>salary − absent days − advances − deduction + bonus = to pay</small></h2>
         {rows.length ? (
-          <div className="tbl-wrap"><table className="num"><thead><tr><th>Employee</th><th>Salary</th><th>Absent days</th><th>Absent cut</th><th>Advances</th><th>Deduction</th><th>Bonus</th><th>To pay</th><th>Pay from</th><th>Paid</th></tr></thead>
+          <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Employee</th><th>Salary</th><th>Absent days</th><th>Absent cut</th><th>Advances</th><th>Deduction</th><th>Bonus</th><th>To pay</th><th>Pay from</th><th>Paid</th></tr></thead>
             <tbody>{rows.map(r => (
               <tr key={r.id}><td><b>{r.name}</b><div className="sub">{r.role}</div></td><td>{fmt(r.base)}</td>
                 <td>{ro ? r.absent : <NumInput step="0.5" max="31" aria-label="Absent days" value={r.absent || ""} onChange={v => setSal(r.id, "absent", v === "" ? 0 : v)} />}</td>
