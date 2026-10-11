@@ -73,6 +73,8 @@ export const watchCollection = (col, next) => {
   setTimeout(() => next(list(col)), 30);
   return () => listeners.get(col).delete(next);
 };
+export const watchWhere = (col, field, value, next) => watchCollection(col, docs => next(docs.filter(d => d[field] === value)));
+export const listWhere = async (col, field, value) => list(col).filter(d => d[field] === value);
 export const watchDoc = (col, id, next) => {
   const k = col + "/" + id;
   if (!docListeners.has(k)) docListeners.set(k, new Set());

@@ -56,6 +56,14 @@ service cloud.firestore {
       allow read: if canView('emp') || canView('entry') || canView('close');
       allow write: if canEdit('emp');
     }
+    // employee ID cards and other documents (the file is stored inside the document).
+    // Personal data: only people who can open the Employees page see them.
+    match /empDocs/{id} {
+      allow read: if canView('emp');
+      allow create, update: if canEdit('emp') && request.resource.data.empId is string
+        && request.resource.data.data is string && request.resource.data.data.size() < 1000000;
+      allow delete: if canEdit('emp');
+    }
     match /closings/{id} {
       allow read: if active();
       allow write: if canEdit('close');

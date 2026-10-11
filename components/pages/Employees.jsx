@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Kpi, Empty, Confirm, NumInput, SourceSelect } from "../ui";
-import { fmt, today, thisMonth, monthName, monthShort, nice, niceLong } from "@/lib/format";
+import { fmt, today, thisMonth, monthName, monthShort, nice, niceLong, iso } from "@/lib/format";
 import { ROLES, DEFAULT_RATE, allEmps, activeEmps, sheetRows, salaryRow, advancesFor, prevDay } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
-import { saveDoc, removeDoc, newId, isDenied } from "@/lib/firebase";
+import { saveDoc, removeDoc, patchDoc, newId, isDenied, watchWhere, listWhere } from "@/lib/firebase";
+import { prepareFile, downloadDataUrl, dataUrlToBlob, sizeText } from "@/lib/files";
 import { exportEmployees } from "@/lib/excel";
 
 export const StatusPill = ({ r }) => r.paid ? <span className="pill closed">Paid</span> : r.net < 0 ? <span className="pill open">Over-advanced</span> : <span className="pill open">Due</span>;
@@ -49,7 +50,7 @@ export default function Employees({ addAdvance }) {
                 const r = rowById[e.id];
                 const open = () => { setSel(e.id); setFormOpen(false); };
                 return <tr key={e.id} className={"click" + (e.id === sel ? " sel" : "")} tabIndex={0} onClick={open} onKeyDown={ev => ev.key === "Enter" && open()}>
-                  <td><b>{e.name}</b><div className="sub">{e.role || ""}</div></td><td>{fmt(e.salary)}</td><td>{r ? fmt(r.adv) : "—"}</td>
+                  <td><b>{e.name}</b>{e.docs > 0 && <span className="tag id-tag" title="ID card on file">ID</span>}<div className="sub">{e.role || ""}</div></td><td>{fmt(e.salary)}</td><td>{r ? fmt(r.adv) : "—"}</td>
                   <td className={r && r.net < 0 ? "neg" : ""}>{r ? fmt(r.net) : "—"}</td>
                   <td>{e.active === false ? <span className="pill off">Inactive</span> : r ? <StatusPill r={r} /> : null}</td></tr>;
               })}</tbody>
@@ -90,7 +91,11 @@ function EmployeeForm({ emp, editable, onDone }) {
     catch (e) { setMsg(isDenied(e) ? "You have view-only access." : "Could not save. Try again."); setBusy(false); }
   }
   async function del() {
-    try { await removeDoc("employees", emp.id); toast(emp.name + " deleted"); onDone(null); }
+    try {
+      // remove their ID card files too, so no orphaned copies of personal documents are left behind
+      for (const d of await listWhere("empDocs", "empId", emp.id)) await removeDoc("empDocs", d.id);
+      await removeDoc("employees", emp.id); toast(emp.name + " deleted"); onDone(null);
+    }
     catch { setMsg("Could not delete. Try again."); }
   }
 
@@ -153,6 +158,7 @@ function Account({ m, month, editable, addAdvance }) {
         {r.bonus ? <tr><td>Bonus</td><td>+ {fmt(r.bonus)}</td></tr> : null}
         <tr className="total"><td>Remaining to pay</td><td className={r.net < 0 ? "neg" : ""}>{fmt(r.net)} <StatusPill r={r} /></td></tr>
       </tbody></table>
+      <EmpDocs m={m} editable={editable} />
       {editable && canAddDay && <>
         <h3 className="eyebrow" style={{ margin: "18px 0 8px" }}>Give advance</h3>
         <div className="adv-form">
@@ -180,5 +186,101 @@ function Account({ m, month, editable, addAdvance }) {
         </tbody></table></div>
       </>}
     </div>
+  );
+}
+
+const DOC_KINDS = ["CNIC front", "CNIC back", "Other document"];
+
+// ID card and other documents for one employee, stored in empDocs/{id} with the file inside the document.
+function EmpDocs({ m, editable }) {
+  const { me, toast } = useApp();
+  const [docs, setDocs] = useState(null);
+  const [kind, setKind] = useState(DOC_KINDS[0]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [view, setView] = useState(null);
+  const [askId, setAskId] = useState(null);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    setDocs(null); setMsg(""); setView(null);
+    return watchWhere("empDocs", "empId", m.id, list => setDocs(list.sort((a, b) => DOC_KINDS.indexOf(a.kind) - DOC_KINDS.indexOf(b.kind) || (a.uploadedAt < b.uploadedAt ? -1 : 1))), () => setDocs([]));
+  }, [m.id]);
+  // pick the next missing side by default: front, then back, then other
+  useEffect(() => {
+    if (!docs) return;
+    const have = new Set(docs.map(d => d.kind));
+    setKind(DOC_KINDS.find(k => !have.has(k) || k === "Other document"));
+  }, [docs?.length]);
+
+  const syncCount = n => patchDoc("employees", m.id, { docs: n }).catch(() => {});
+
+  async function upload(file) {
+    if (!file) return;
+    setBusy(true); setMsg("");
+    try {
+      const f = await prepareFile(file);
+      const ext = f.type === "application/pdf" ? "pdf" : "jpg";
+      await saveDoc("empDocs", newId("empDocs"), {
+        empId: m.id, kind, name: `${m.name} - ${kind}.${ext}`, type: f.type, size: f.size, data: f.data,
+        uploadedAt: new Date().toISOString(), uploadedBy: me.uid,
+      });
+      syncCount((docs?.length || 0) + 1);
+      toast(`${kind} saved for ${m.name}`);
+    } catch (e) {
+      setMsg(isDenied(e) ? "You don’t have permission to add documents." : e.message || "Could not save the file. Try again.");
+    }
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+  async function del(d) {
+    try { await removeDoc("empDocs", d.id); setAskId(null); syncCount(Math.max(0, (docs?.length || 1) - 1)); toast(d.kind + " deleted"); }
+    catch { toast("Could not delete. Try again."); }
+  }
+  function open(d) {
+    if (d.type === "application/pdf") { window.open(URL.createObjectURL(dataUrlToBlob(d.data)), "_blank", "noopener"); return; }
+    setView(d);
+  }
+
+  return (
+    <>
+      <h3 className="eyebrow" style={{ margin: "18px 0 8px" }}>ID card &amp; documents</h3>
+      {docs === null ? <p className="hint" style={{ margin: 0 }}>Loading documents…</p> : (
+        <div className="docs">
+          {docs.map(d => (
+            <div className="doc" key={d.id}>
+              <button type="button" className="doc-thumb" onClick={() => open(d)} aria-label={`View ${d.kind}`}>
+                {d.type.startsWith("image/") ? <img src={d.data} alt={d.kind} /> : <span className="doc-pdf">PDF</span>}
+              </button>
+              <div className="doc-meta"><b>{d.kind}</b><span>{sizeText(d.size)} · {nice(iso(new Date(d.uploadedAt)))}</span></div>
+              <div className="doc-actions">
+                <button type="button" className="btn ghost" onClick={() => downloadDataUrl(d.data, d.name)}>Download</button>
+                {editable && (askId === d.id ? <Confirm text="Delete?" yes="Yes" no="No" onYes={() => del(d)} onNo={() => setAskId(null)} />
+                  : <button type="button" className="btn ghost danger" onClick={() => setAskId(d.id)}>Delete</button>)}
+              </div>
+            </div>
+          ))}
+          {!docs.length && <p className="hint" style={{ margin: 0 }}>No ID card yet.{editable ? " Add a photo of the front and back of the CNIC." : ""}</p>}
+        </div>
+      )}
+      {editable && (
+        <div className="doc-add">
+          <label className="field">Document<select value={kind} onChange={e => setKind(e.target.value)}>{DOC_KINDS.map(k => <option key={k}>{k}</option>)}</select></label>
+          <input ref={fileRef} id={`doc-file-${m.id}`} type="file" accept="image/*,application/pdf" hidden onChange={e => upload(e.target.files?.[0])} />
+          <button type="button" className="btn primary" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? "Saving…" : "Add photo or file"}</button>
+        </div>
+      )}
+      {msg && <p className="msg" role="alert">{msg}</p>}
+      {editable && <p className="hint">On a phone, “Add photo or file” lets you take a picture with the camera. Photos are made smaller before saving.</p>}
+
+      {view && <>
+        <div className="sheet-back" style={{ display: "block" }} onClick={() => setView(null)} />
+        <div className="viewer" role="dialog" aria-label={view.kind}>
+          <div className="viewer-head"><b>{m.name} · {view.kind}</b>
+            <span><button className="btn" onClick={() => downloadDataUrl(view.data, view.name)}>Download</button> <button className="btn" onClick={() => setView(null)}>Close</button></span></div>
+          <img src={view.data} alt={view.kind} />
+        </div>
+      </>}
+    </>
   );
 }
