@@ -27,7 +27,7 @@ export default function DailyEntry({ navReq, injectReq }) {
   function blankDay(d) {
     const p = prevDay(D.days, d);
     return {
-      date: d, sale: { cash: "", bank: "", easypaisa: "" }, expenses: [{ cat: "Vegetables", desc: "", amt: "", from: "cash" }],
+      date: d, sale: { total: "", cash: "", bank: "", easypaisa: "" }, expenses: [{ cat: "Vegetables", desc: "", amt: "", from: "cash" }],
       // carry rider names, and yesterday's end reading as today's start, so they don't need retyping
       riders: p ? (p.riders || []).map(r => ({ name: r.name, orders: [], kmStart: r.kmEnd || "", kmEnd: "", petrolAuto: r.petrolAuto !== false, petrol: "" })) : [],
       petrolRate: p?.petrolRate ?? DEFAULT_RATE, petrolFrom: p?.petrolFrom || "cash", note: "",
@@ -37,6 +37,8 @@ export default function DailyEntry({ navReq, injectReq }) {
     const r = D.days.get(d);
     const x = r ? clone(r) : blankDay(d);
     x.sale ||= { cash: "", bank: "", easypaisa: "" }; x.expenses ||= []; x.riders ||= [];
+    // days saved before the total-first entry have no total: their total is the split
+    if (x.sale.total == null) x.sale.total = r ? saleOf(r) || "" : "";
     if (x.petrolRate == null) x.petrolRate = prevDay(D.days, d)?.petrolRate ?? DEFAULT_RATE;
     dateRef.current = d;
     setDraft(x); setDirty(false); setErr(""); setPendingNav(null); setAskDelete(false);
@@ -63,7 +65,7 @@ export default function DailyEntry({ navReq, injectReq }) {
   function clean() {
     return {
       date: draft.date,
-      sale: { cash: num(draft.sale.cash), bank: num(draft.sale.bank), easypaisa: num(draft.sale.easypaisa) },
+      sale: { total: saleOf(draft), cash: num(draft.sale.cash), bank: num(draft.sale.bank), easypaisa: num(draft.sale.easypaisa) },
       expenses: draft.expenses.filter(e => num(e.amt) > 0 || (e.desc || "").trim()).map(e => {
         const o = { cat: e.cat || "Other", desc: (e.desc || "").trim(), amt: num(e.amt), from: srcKey(e.from) };
         if (e.cat === "Salary advance" && e.emp) o.emp = e.emp;
@@ -82,6 +84,12 @@ export default function DailyEntry({ navReq, injectReq }) {
   async function save(okMsg = "Day saved") {
     const closed = D.closings.get(draft.date.slice(0, 7))?.status === "closed";
     if (closed) { setErr("This month is closed. Reopen it in Month closing to change this day."); return; }
+    // the split must add up to the total sale typed in (a day with no total typed just uses the split)
+    const tot = num(draft.sale.total), gap = tot - saleOf(draft);
+    if (draft.sale.total !== "" && gap !== 0) {
+      setErr(gap > 0 ? `${fmt(gap)} of the total sale isn’t split yet. Add it to Cash, Bank or EasyPaisa.` : `Cash + Bank + EasyPaisa is ${fmt(-gap)} more than the total sale. Fix the split or the total.`);
+      return;
+    }
     setSaving(true);
     const rec = clean();
     try { await saveDoc("days", rec.date, rec); setDraft(clone(rec)); setDirty(false); toast(okMsg); }
@@ -139,7 +147,11 @@ export default function DailyEntry({ navReq, injectReq }) {
         <fieldset disabled={!canWrite} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div className="view">
             <div className="card">
-              <h2>Sale <small>enter the day’s totals by payment type</small></h2>
+              <h2>Sale <small>enter the total, then split it by how customers paid</small></h2>
+              <div className="sale-total">
+                <label className="field">Total sale for {nice(draft.date)}<NumInput value={draft.sale.total} onChange={val => update(n => { n.sale.total = val; })} placeholder="e.g. 15000" /></label>
+                <SplitStatus total={draft.sale.total} split={s} onFill={k => update(n => { n.sale[k] = num(n.sale[k]) + (num(n.sale.total) - saleOf(n)); })} />
+              </div>
               <div className="sales3">
                 {[["cash", "Cash", "--cash"], ["bank", "Bank", "--bank"], ["easypaisa", "EasyPaisa / JazzCash", "--ep"]].map(([k, label, c]) => (
                   <label className="field" key={k}><span className="lbl"><Swatch color={c} />{label}</span>
@@ -147,7 +159,7 @@ export default function DailyEntry({ navReq, injectReq }) {
                 ))}
               </div>
               {canWrite && <div className="bar" style={{ marginTop: 12 }}>
-                <span className="grow">Total sale <b className="num">{fmt(s)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
+                <span className="grow">Split <b className="num">{fmt(s)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
                 <button className="btn primary" onClick={() => save("Sale saved")} disabled={saving || (!dirty && exists)}>{saving ? "Saving…" : !dirty && exists ? "Saved" : "Save sale"}</button>
               </div>}
             </div>
@@ -270,5 +282,19 @@ export default function DailyEntry({ navReq, injectReq }) {
         <button className="btn primary" onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
       </div>}
     </>
+  );
+}
+
+// Shows whether Cash + Bank + EasyPaisa adds up to the total sale, with one-tap buttons to put the rest in an account.
+function SplitStatus({ total, split, onFill }) {
+  if (total === "" || total == null) return <p className="split-note">Type the total sale, then enter how much came in Cash, Bank and EasyPaisa.</p>;
+  const gap = num(total) - split;
+  if (gap === 0) return <p className="split-note ok">✓ Split matches the total sale</p>;
+  if (gap < 0) return <p className="split-note bad">Split is {fmt(-gap)} more than the total sale</p>;
+  return (
+    <div className="split-note warn">
+      <span><b>{fmt(gap)}</b> still to split</span>
+      <span className="split-fill">Put it in: {[["cash", "Cash"], ["bank", "Bank"], ["easypaisa", "EasyPaisa"]].map(([k, l]) => <button key={k} type="button" className="chip" onClick={() => onFill(k)}>{l}</button>)}</span>
+    </div>
   );
 }

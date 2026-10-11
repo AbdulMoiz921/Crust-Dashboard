@@ -343,3 +343,14 @@ td select{width:auto;padding:5px 8px}
   .page-name{display:block;font-style:normal;font-family:var(--display);font-size:18px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bnav button span{font-size:11px;line-height:1.15;text-align:center}
 }
+
+/* Daily entry: total sale first, then the split */
+.sale-total{display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:12px;align-items:end;margin-bottom:14px;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.sale-total input{font-size:18px;font-weight:600}
+.split-note{margin:0;font-size:14px;color:var(--muted);padding:8px 0}
+.split-note.ok{color:var(--good);font-weight:600}
+.split-note.bad{color:var(--bad);font-weight:600}
+.split-note.warn{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;color:var(--warn-ink);background:var(--warn-bg);padding:8px 12px;border-radius:8px}
+.split-fill{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.split-fill .chip{padding:3px 10px;font-size:13px}
+@media (max-width:640px){.sale-total{grid-template-columns:1fr}}
