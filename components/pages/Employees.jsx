@@ -72,11 +72,12 @@ export default function Employees({ addAdvance }) {
 }
 
 function EmployeeForm({ emp, editable, onDone }) {
-  const { D, toast } = useApp();
+  const { D, me, toast } = useApp();
   const [f, setF] = useState(() => ({ name: emp?.name || "", role: emp?.role || "Rider", salary: emp?.salary ?? "", phone: emp?.phone || "", joined: emp?.joined || "", active: emp?.active !== false, note: emp?.note || "" }));
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [askDel, setAskDel] = useState(false);
+  const [pending, setPending] = useState([]); // ID card files picked while adding a new employee, saved with it
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
 
   async function save() {
@@ -85,9 +86,18 @@ function EmployeeForm({ emp, editable, onDone }) {
     const dup = [...D.emps.values()].find(x => x.id !== emp?.id && (x.name || "").toLowerCase() === name.toLowerCase());
     if (dup) return setMsg(`${dup.name} already exists. Use a different name, e.g. add the surname.`);
     const id = emp?.id || newId("employees");
-    const data = { name, role: f.role, salary: +f.salary || 0, phone: f.phone.trim(), joined: f.joined, active: f.active, note: f.note.trim(), createdAt: emp?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const data = { name, role: f.role, salary: +f.salary || 0, phone: f.phone.trim(), joined: f.joined, active: f.active, note: f.note.trim(),
+      docs: emp ? (emp.docs || 0) : pending.length, createdAt: emp?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
     setBusy(true);
-    try { await saveDoc("employees", id, data); toast(emp ? "Changes saved" : name + " added"); onDone(id); }
+    try {
+      await saveDoc("employees", id, data);
+      for (const d of pending) {
+        const ext = d.type === "application/pdf" ? "pdf" : "jpg";
+        await saveDoc("empDocs", newId("empDocs"), { empId: id, kind: d.kind, name: `${name} - ${d.kind}.${ext}`, type: d.type, size: d.size, data: d.data, uploadedAt: new Date().toISOString(), uploadedBy: me.uid });
+      }
+      toast(emp ? "Changes saved" : name + " added" + (pending.length ? ` with ${pending.length} document${pending.length === 1 ? "" : "s"}` : ""));
+      onDone(id);
+    }
     catch (e) { setMsg(isDenied(e) ? "You have view-only access." : "Could not save. Try again."); setBusy(false); }
   }
   async function del() {
@@ -111,6 +121,8 @@ function EmployeeForm({ emp, editable, onDone }) {
         <label className="field">Status<span className="chk" style={{ padding: "8px 0" }}><input type="checkbox" checked={f.active} onChange={e => set("active", e.target.checked)} /> Working (active)</span></label>
         <label className="field full">Note<input type="text" value={f.note} onChange={e => set("note", e.target.value)} placeholder="CNIC, address or anything to remember" /></label>
       </div>
+      {!emp && editable && <NewEmpDocs pending={pending} setPending={setPending} />}
+      {emp && <p className="hint">ID card and documents are in {emp.name}’s account below.</p>}
       {editable && <div className="bar" style={{ marginTop: 14 }}>
         <span className="grow sub">{msg}</span>
         {emp ? (askDel ? <Confirm text={`Delete ${emp.name}? Their advances stay in the daily book.`} onYes={del} onNo={() => setAskDel(false)} />
@@ -281,6 +293,53 @@ function EmpDocs({ m, editable }) {
           <img src={view.data} alt={view.kind} />
         </div>
       </>}
+    </>
+  );
+}
+
+// ID card slots on the "New employee" form: files are prepared (photos shrunk) right away and saved with the employee.
+function NewEmpDocs({ pending, setPending }) {
+  const [msg, setMsg] = useState("");
+  const [busyKind, setBusyKind] = useState(null);
+  const inputs = useRef({});
+  async function pick(kind, file) {
+    if (!file) return;
+    setMsg(""); setBusyKind(kind);
+    try {
+      const f = await prepareFile(file);
+      setPending(p => kind === "Other document" ? [...p, { kind, ...f }] : [...p.filter(x => x.kind !== kind), { kind, ...f }]);
+    } catch (e) { setMsg(e.message); }
+    setBusyKind(null);
+    if (inputs.current[kind]) inputs.current[kind].value = "";
+  }
+  return (
+    <>
+      <h3 className="eyebrow" style={{ margin: "16px 0 8px" }}>ID card &amp; documents <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 500 }}>(optional)</span></h3>
+      <div className="slots">
+        {DOC_KINDS.map(kind => {
+          const items = pending.filter(x => x.kind === kind);
+          const one = kind !== "Other document";
+          return (
+            <div className="slot" key={kind}>
+              <input ref={el => { inputs.current[kind] = el; }} type="file" accept="image/*,application/pdf" hidden onChange={e => pick(kind, e.target.files?.[0])} />
+              {items.map((d, i) => (
+                <div className="slot-file" key={i}>
+                  {d.type.startsWith("image/") ? <img src={d.data} alt={kind} /> : <span className="doc-pdf">PDF</span>}
+                  <button type="button" className="x" aria-label={`Remove ${kind}`} onClick={() => setPending(p => p.filter(x => x !== d))}>×</button>
+                </div>
+              ))}
+              {(!one || !items.length) && (
+                <button type="button" className="slot-add" disabled={busyKind === kind} onClick={() => inputs.current[kind]?.click()}>
+                  <b>{busyKind === kind ? "Preparing…" : "+ " + kind}</b><span>photo or PDF</span>
+                </button>
+              )}
+              {items.length > 0 && <span className="slot-label">{kind} ✓</span>}
+            </div>
+          );
+        })}
+      </div>
+      {msg && <p className="msg" role="alert">{msg}</p>}
+      <p className="hint">On a phone you can take the photo with the camera. Documents are saved when you press Add employee.</p>
     </>
   );
 }

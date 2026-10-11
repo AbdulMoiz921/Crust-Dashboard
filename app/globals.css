@@ -374,3 +374,15 @@ td select{width:auto;padding:5px 8px}
 .viewer-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .viewer img{max-width:100%;max-height:calc(100vh - 140px);object-fit:contain;border-radius:6px;background:var(--surface-2)}
 @media (max-width:640px){.doc{grid-template-columns:56px 1fr}.doc-actions{grid-column:1/-1;justify-content:flex-start}.doc-add .field{width:100%}.doc-add .btn{flex:1}}
+
+/* ID card slots on the New employee form */
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.slot{display:flex;flex-direction:column;gap:6px;min-width:0}
+.slot-add{border:1.5px dashed var(--line);border-radius:10px;background:var(--surface-2);min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--accent);padding:8px}
+.slot-add span{font-size:12px;color:var(--muted)}
+.slot-add:hover{border-color:var(--accent)}
+.slot-file{position:relative;height:84px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface-2);display:grid;place-items:center}
+.slot-file img{width:100%;height:100%;object-fit:cover}
+.slot-file .x{position:absolute;top:4px;right:4px;background:var(--surface);border-radius:50%;width:26px;height:26px;padding:0;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.slot-label{font-size:12px;color:var(--muted);font-weight:600}
+@media (max-width:520px){.slots{grid-template-columns:1fr 1fr}}
