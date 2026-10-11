@@ -79,12 +79,12 @@ export default function DailyEntry({ navReq, injectReq }) {
       updatedBy: me.uid,
     };
   }
-  async function save() {
+  async function save(okMsg = "Day saved") {
     const closed = D.closings.get(draft.date.slice(0, 7))?.status === "closed";
     if (closed) { setErr("This month is closed. Reopen it in Month closing to change this day."); return; }
     setSaving(true);
     const rec = clean();
-    try { await saveDoc("days", rec.date, rec); setDraft(clone(rec)); setDirty(false); toast("Day saved"); }
+    try { await saveDoc("days", rec.date, rec); setDraft(clone(rec)); setDirty(false); toast(okMsg); }
     catch (e) { setErr(isDenied(e) ? "You have view-only access, so this day was not saved." : "Could not save. Check your connection and press Save again."); }
     setSaving(false);
   }
@@ -126,7 +126,7 @@ export default function DailyEntry({ navReq, injectReq }) {
           if (!rec) return toast("This day is empty. Fill it in first.");
           exportRange(D, [rec], rec.date, rec.date, `Crust-House-${rec.date}${dirty ? "-unsaved" : ""}.xlsx`).then(() => toast("Excel file downloaded"));
         }}>Export day</button>
-        {canWrite && <button className="btn primary desk-save" onClick={save} disabled={saving}>Save day</button>}
+        {canWrite && <button className="btn primary desk-save" onClick={() => save()} disabled={saving}>Save day</button>}
         {missed.length > 0 && (
           <div className="missed">
             <span className="sub">Missed days:</span>
@@ -146,6 +146,10 @@ export default function DailyEntry({ navReq, injectReq }) {
                     <NumInput value={draft.sale[k]} onChange={val => update(n => { n.sale[k] = val; })} /></label>
                 ))}
               </div>
+              {canWrite && <div className="bar" style={{ marginTop: 12 }}>
+                <span className="grow">Total sale <b className="num">{fmt(s)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
+                <button className="btn primary" onClick={() => save("Sale saved")} disabled={saving || (!dirty && exists)}>{saving ? "Saving…" : !dirty && exists ? "Saved" : "Save sale"}</button>
+              </div>}
             </div>
 
             <div className="card">
@@ -226,6 +230,10 @@ export default function DailyEntry({ navReq, injectReq }) {
             <div className="card">
               <label className="field">Note for the day<input type="text" value={draft.note || ""} placeholder="e.g. Gas cylinder changed, rain slowed delivery" onChange={ev => update(n => { n.note = ev.target.value; })} /></label>
             </div>
+            {canWrite && <div className="card bar desk-save">
+              <span className="grow">{err ? <span className="neg">{err}</span> : dirty ? "Unsaved changes" : updatedText}</span>
+              <button className="btn primary" onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save day"}</button>
+            </div>}
           </div>
         </fieldset>
 
@@ -259,7 +267,7 @@ export default function DailyEntry({ navReq, injectReq }) {
       {/* phones: totals and Save stay reachable at the bottom while scrolling the form */}
       {canWrite && <div className="savebar">
         <div><span>{nice(draft.date)} · {dirty ? "unsaved" : exists ? "saved" : "new"}</span><b>Sale {fmt(s)} · Exp {fmt(e)}</b></div>
-        <button className="btn primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+        <button className="btn primary" onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
       </div>}
     </>
   );
