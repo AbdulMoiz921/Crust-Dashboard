@@ -9,16 +9,17 @@ import DailyEntry from "./pages/DailyEntry";
 import Employees from "./pages/Employees";
 import MonthClosing from "./pages/MonthClosing";
 import Vendors from "./pages/Vendors";
+import Customers from "./pages/Customers";
 import Capital from "./pages/Capital";
 import Users from "./pages/Users";
 import Workflow from "./pages/Workflow";
 
 const TABS = [
   ["dash", "Dashboard", "Dashboard"], ["entry", "Daily entry", "Daily entry"], ["emp", "Employees", "Employees"], ["close", "Month closing", "Closing"],
-  ["ven", "Vendors", "Vendors"], ["cap", "Capital", "Capital"], ["users", "Users", "Users"], ["flow", "Workflow", "Workflow"],
+  ["ven", "Vendors", "Vendors"], ["cust", "Customers", "Customers"], ["cap", "Capital", "Capital"], ["users", "Users", "Users"], ["flow", "Workflow", "Workflow"],
 ];
 // order of the phone's bottom bar: the first four pages this person can open, the rest under More
-const MOBILE_ORDER = ["dash", "entry", "ven", "emp", "close", "cap", "users", "flow"];
+const MOBILE_ORDER = ["dash", "entry", "ven", "emp", "cust", "close", "cap", "users", "flow"];
 
 // On phones, list tables turn into cards; each cell shows its column name taken from the table header.
 function labelStackTables(root) {
@@ -95,6 +96,7 @@ export default function AppShell() {
         {allowed("emp") && <section className="view" hidden={current !== "emp"}><Employees addAdvance={addAdvance} /></section>}
         {allowed("close") && <section className="view" hidden={current !== "close"}><MonthClosing /></section>}
         {allowed("ven") && <section className="view" hidden={current !== "ven"}><Vendors /></section>}
+        {allowed("cust") && <section className="view" hidden={current !== "cust"}><Customers /></section>}
         {allowed("cap") && <section className="view" hidden={current !== "cap"}><Capital /></section>}
         {allowed("users") && <section className="view" hidden={current !== "users"}><Users /></section>}
         <section className="view" hidden={current !== "flow"}><Workflow active={current === "flow"} /></section>

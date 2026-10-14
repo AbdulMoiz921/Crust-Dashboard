@@ -73,8 +73,10 @@ export default function MonthClosing() {
         <Kpi label={`Sale · ${monthShort(month)}`} value={f.sale} sub={`${f.n} day${f.n === 1 ? "" : "s"} recorded`} />
         <Kpi label="Expenses" value={f.exp} sub={`incl. petrol ${fmt(f.petrol)}, advances ${fmt(f.adv)}`} />
         <Kpi label="Salary still to pay" value={toPay} sub={`salary cost ${fmt(salaryCost)}`} />
-        <Kpi label="Profit after salary" value={profit} sub="sale − expenses − vendor bills − salaries" />
+        <Kpi label="Profit after salary" value={profit} sub="sale + credit food − expenses − vendor bills − salaries" />
         <Kpi label="Owed to vendors" value={f.owed} neg={f.owed > 0} sub={`at month end · bills ${fmt(f.vbills)}`} />
+        <Kpi label="Customers owe us" value={f.recv} sub="credit not paid back at month end" />
+        <Kpi label="Food given on credit" value={f.credit} sub={`this month · received back ${fmt(sum3(f.cpay))}`} />
       </div>
 
       <div className="card">
@@ -87,6 +89,7 @@ export default function MonthClosing() {
         <div className="tbl-wrap"><table className="num money cards"><thead><tr><th></th><th>Cash</th><th>Bank</th><th>EasyPaisa / JazzCash</th><th>Total</th></tr></thead><tbody>
           <tr><td>Opening balance</td><td>{fmt(o.cash)}</td><td>{fmt(o.bank)}</td><td>{fmt(o.easypaisa)}</td><td>{fmt((+o.cash || 0) + (+o.bank || 0) + (+o.easypaisa || 0))}</td></tr>
           <tr><td>+ Sale received</td><td>{money(f.cash, "+ ")}</td><td>{money(f.bank, "+ ")}</td><td>{money(f.ep, "+ ")}</td><td>{money(f.sale, "+ ")}</td></tr>
+          <tr><td>+ Customer payments received</td><td>{money(f.cpay.cash, "+ ")}</td><td>{money(f.cpay.bank, "+ ")}</td><td>{money(f.cpay.easypaisa, "+ ")}</td><td>{money(sum3(f.cpay), "+ ")}</td></tr>
           <tr><td>+ Capital invested</td><td>{money(f.capIn.cash, "+ ")}</td><td>{money(f.capIn.bank, "+ ")}</td><td>{money(f.capIn.easypaisa, "+ ")}</td><td>{money(sum3(f.capIn), "+ ")}</td></tr>
           <tr><td>− Expenses, petrol &amp; advances</td><td>{money(f.out.cash, "− ")}</td><td>{money(f.out.bank, "− ")}</td><td>{money(f.out.easypaisa, "− ")}</td><td>{money(f.exp, "− ")}</td></tr>
           <tr><td>− Capital spent &amp; withdrawn</td><td>{money(f.capOut.cash, "− ")}</td><td>{money(f.capOut.bank, "− ")}</td><td>{money(f.capOut.easypaisa, "− ")}</td><td>{money(sum3(f.capOut), "− ")}</td></tr>

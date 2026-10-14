@@ -10,6 +10,7 @@ const STEPS = [
   ["Step 6 · Review", "Dashboard with filters", "Today’s totals sit at the top. Choose today, last 7 days, a month or a custom range to see totals, charts, riders and every day in a table."],
   ["Any day · Advance", "Salary advance", "In Daily entry pick “Salary advance” and the employee, or use Give advance on the Employees page. It is counted as that day’s expense and added to the employee’s account."],
   ["Any time · Vendors", "Unpaid bills", "On the Vendors page, add a bill you will pay later. When you pay, record the payment and the account it came from. Each vendor shows how much we still owe."],
+  ["Any time · Customers", "Food on credit", "If a customer takes food now and pays later, add it on the Customers page instead of the day’s sale. When they pay, record it with the account it came into. Each customer shows how much they owe."],
   ["Any time · Capital", "Capital", "Record money an owner or partner puts in, setup and equipment spending, and owner withdrawals, with the account used."],
   ["Month end · Closing", "Close the month", "Month closing shows opening, received, paid out and closing for cash, bank and EasyPaisa, and each employee’s salary minus advances. Tick Paid, then Close month to lock it."],
   ["Admin · Users", "Users and access", "Admins add people on the Users page and choose, page by page, whether each person can view or edit."],
@@ -35,7 +36,10 @@ const DIAGRAM = `flowchart LR
   R[Vendor unpaid bill] --> S[Owed to vendor]
   T[Vendor payment] --> S
   T --> M
-  M --> N[Closing cash / bank / EasyPaisa]`;
+  M --> N[Closing cash / bank / EasyPaisa]
+  U[Food on credit] --> X[Customer owes us]
+  Y[Customer pays back] --> X
+  Y --> M`;
 
 export default function Workflow({ active }) {
   const box = useRef(null);

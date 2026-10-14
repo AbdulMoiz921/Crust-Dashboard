@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Kpi, Empty, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, niceLong, nice, parse, MONTHS, dim, pad } from "@/lib/format";
-import { saleOf, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, vpayBySrc, leftBySrc, totalOwed, inRange } from "@/lib/calc";
+import { saleOf, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, vpayBySrc, cpayBySrc, creditGiven, totalReceivable, leftBySrc, totalOwed, inRange } from "@/lib/calc";
 import { exportRange } from "@/lib/excel";
 
 const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "Last 7 days"], ["month", "Month"], ["custom", "Custom"]];
@@ -31,7 +31,7 @@ export default function Dashboard({ openDay }) {
       cash += +r.sale?.cash || 0; bank += +r.sale?.bank || 0; ep += +r.sale?.easypaisa || 0; exp += expOf(r);
       const x = expBySrc(r); for (const k in out) out[k] += x[k];
     });
-    const vp = vpayBySrc(D.vpays, from, to);
+    const vp = vpayBySrc(D.vpays, from, to), cp = cpayBySrc(D.cpays, from, to);
     const cat = {};
     recs.forEach(r => { (r.expenses || []).forEach(e => { const k = e.cat || "Other"; cat[k] = (cat[k] || 0) + (+e.amt || 0); }); const pp = petrolDay(r); if (pp) cat["Rider petrol"] = (cat["Rider petrol"] || 0) + pp; });
     const rid = {};
@@ -42,12 +42,14 @@ export default function Dashboard({ openDay }) {
     }));
     return {
       cash, bank, ep, exp, out, vp, vpTot: vp.cash + vp.bank + vp.easypaisa, sale: cash + bank + ep,
+      cp, cpTot: cp.cash + cp.bank + cp.easypaisa, credit: creditGiven(D.cbills, from, to),
       cats: Object.entries(cat).filter(c => c[1] > 0).sort((a, b) => b[1] - a[1]),
       riders: Object.entries(rid).sort((a, b) => b[1].amt - a[1].amt),
     };
-  }, [recs, D.vpays, from, to]);
+  }, [recs, D.vpays, D.cpays, D.cbills, from, to]);
   const owed = useMemo(() => totalOwed(D), [D.vendors, D.vbills, D.vpays]);
-  const n = recs.length, net = S.sale - S.exp, inHand = S.cash - S.out.cash - S.vp.cash;
+  const recv = useMemo(() => totalReceivable(D), [D.customers, D.cbills, D.cpays]);
+  const n = recs.length, net = S.sale - S.exp, inHand = S.cash + S.cp.cash - S.out.cash - S.vp.cash;
 
   return (
     <>
@@ -70,8 +72,10 @@ export default function Dashboard({ openDay }) {
         <Kpi main label="Total sale" value={S.sale} sub={`${n} day${n === 1 ? "" : "s"} recorded`} />
         <Kpi label="Total expense" value={S.exp} sub={S.sale ? ((S.exp / S.sale) * 100).toFixed(1) + "% of sale" : "—"} />
         <Kpi label="Sale minus expense" value={net} sub={net >= 0 ? "▲ ahead" : "▼ expense is higher"} />
-        <Kpi label="Cash in hand" value={inHand} sub="cash sale − cash paid out" />
+        <Kpi label="Cash in hand" value={inHand} sub={"cash sale − cash paid out" + (S.cp.cash ? " + credit received" : "")} />
         <Kpi label="Owed to vendors" value={owed} neg={owed > 0} sub={"unpaid bills now" + (S.vpTot ? " · paid " + fmt(S.vpTot) + " in range" : "")} />
+        <Kpi label="Customers owe us" value={recv} sub={"credit not paid back yet" + (S.cpTot ? " · received " + fmt(S.cpTot) + " in range" : "")} />
+        <Kpi label="Food given on credit" value={S.credit} sub="in this range, not in total sale" />
         <Kpi label="Average daily sale" value={n ? S.sale / n : 0} sub={n ? "best: " + fmt(Math.max(...recs.map(saleOf))) : "no days yet"} />
       </div>
 
@@ -92,12 +96,12 @@ export default function Dashboard({ openDay }) {
               ))}
             </div>
           </>}
-          {(S.sale || S.exp || S.vpTot) ? <>
+          {(S.sale || S.exp || S.vpTot || S.cpTot) ? <>
             <h3 className="eyebrow" style={{ margin: "18px 0 6px" }}>Left in each account</h3>
-            <div className="tbl-wrap"><table className="num cards"><thead><tr><th></th><th>Received</th><th>Expenses</th>{S.vpTot ? <th>Vendors</th> : null}<th>Left</th></tr></thead><tbody>
+            <div className="tbl-wrap"><table className="num cards"><thead><tr><th></th><th>Sale</th>{S.cpTot ? <th>Credit paid</th> : null}<th>Expenses</th>{S.vpTot ? <th>Vendors</th> : null}<th>Left</th></tr></thead><tbody>
               {[["Cash", S.cash, "cash"], ["Bank", S.bank, "bank"], ["EasyPaisa", S.ep, "easypaisa"]].map(([l, v, k]) => {
-                const left = v - S.out[k] - S.vp[k];
-                return <tr key={k}><td>{l}</td><td>{fmt(v)}</td><td>{fmt(S.out[k])}</td>{S.vpTot ? <td>{fmt(S.vp[k])}</td> : null}<td className={left < 0 ? "neg" : ""}><b>{fmt(left)}</b></td></tr>;
+                const left = v + S.cp[k] - S.out[k] - S.vp[k];
+                return <tr key={k}><td>{l}</td><td>{fmt(v)}</td>{S.cpTot ? <td>{fmt(S.cp[k])}</td> : null}<td>{fmt(S.out[k])}</td>{S.vpTot ? <td>{fmt(S.vp[k])}</td> : null}<td className={left < 0 ? "neg" : ""}><b>{fmt(left)}</b></td></tr>;
               })}
             </tbody></table></div>
           </> : null}
@@ -145,7 +149,7 @@ function TodayStrip() {
   const { D, toast } = useApp();
   const t = today(), r = D.days.get(t);
   const s = r ? saleOf(r) : 0, e = r ? expOf(r) : 0, c = +r?.sale?.cash || 0, pp = r ? petrolDay(r) : 0;
-  const inHand = r ? leftBySrc(r, D.vpays).cash : -vpayBySrc(D.vpays, t, t).cash;
+  const inHand = r ? leftBySrc(r, D).cash : cpayBySrc(D.cpays, t, t).cash - vpayBySrc(D.vpays, t, t).cash;
   // eight tiles so the strip fills evenly: 8 across on desktop, 4 on tablets, 2 on phones
   const cells = [
     ["Total sale", s, "hl"], ["Cash", c, "", "--cash"], ["Bank", +r?.sale?.bank || 0, "", "--bank"], ["EasyPaisa / JazzCash", +r?.sale?.easypaisa || 0, "", "--ep"],

@@ -8,7 +8,8 @@ export const useApp = () => useContext(AppCtx);
 
 const empty = () => ({
   days: new Map(), emps: new Map(), closings: new Map(), capital: new Map(),
-  vendors: new Map(), vbills: new Map(), vpays: new Map(), users: new Map(), requests: new Map(),
+  vendors: new Map(), vbills: new Map(), vpays: new Map(), customers: new Map(), cbills: new Map(), cpays: new Map(),
+  users: new Map(), requests: new Map(),
 });
 
 // status: loading | config | signedOut | owner (fresh project, can claim) | pending (waiting for approval) | off (switched off) | ready
@@ -84,6 +85,11 @@ export default function AppProvider({ children }) {
       keyed("vbills", "vbills", d => d.id, d => !!d.date);
       keyed("vpays", "vpays", d => d.id, d => !!d.date);
     } else { skip("vendors"); skip("vbills"); skip("vpays"); }
+    if (canRead.customers) {
+      keyed("customers", "customers", d => d.id, d => !!d.name);
+      keyed("cbills", "cbills", d => d.id, d => !!d.date);
+      keyed("cpays", "cpays", d => d.id, d => !!d.date);
+    } else { skip("customers"); skip("cbills"); skip("cpays"); }
     canRead.capital ? keyed("capital", "capital", d => d.id, d => !!d.date) : skip("capital");
     if (canRead.users) { keyed("users", "users"); keyed("requests", "requests"); }
     return () => subs.forEach(u => u());

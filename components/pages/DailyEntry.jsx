@@ -5,7 +5,7 @@ import { Confirm, NumInput, SourceSelect, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, nice, niceLong, num } from "@/lib/format";
 import {
   CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, vpayBySrc, leftBySrc,
-  prevDay, activeEmps, matchEmp, srcKey,
+  prevDay, activeEmps, matchEmp, srcKey, creditGiven, cpayBySrc,
 } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
 import { saveDoc, removeDoc, isDenied } from "@/lib/firebase";
@@ -102,8 +102,9 @@ export default function DailyEntry({ navReq, injectReq }) {
   }
 
   const s = saleOf(draft), e = expOf(draft), p = petrolDay(draft);
-  const x = expBySrc(draft), l = leftBySrc(draft, D.vpays), v = vpayBySrc(D.vpays, draft.date, draft.date), vt = v.cash + v.bank + v.easypaisa;
+  const x = expBySrc(draft), l = leftBySrc(draft, D), v = vpayBySrc(D.vpays, draft.date, draft.date), vt = v.cash + v.bank + v.easypaisa;
   const km = draft.riders.reduce((a, r) => a + kmOf(r), 0);
+  const cg = creditGiven(D.cbills, draft.date, draft.date), cp = cpayBySrc(D.cpays, draft.date, draft.date), ct = cp.cash + cp.bank + cp.easypaisa;
   // the last 14 days with no entry, counted only from the first day ever recorded
   const first = [...D.days.keys()].sort()[0];
   const missed = [];
@@ -158,6 +159,10 @@ export default function DailyEntry({ navReq, injectReq }) {
                     <NumInput value={draft.sale[k]} onChange={val => update(n => { n.sale[k] = val; })} /></label>
                 ))}
               </div>
+              <p className="credit-note">
+                Food given on credit? Don’t count it here; record it on the <b>Customers</b> page.
+                {(cg || ct) ? <> On {nice(draft.date)}: credit given <b>{fmt(cg)}</b>{ct ? <>, credit paid back <b>{fmt(ct)}</b> (counted in the accounts below)</> : null}.</> : null}
+              </p>
               {canWrite && <div className="bar" style={{ marginTop: 12 }}>
                 <span className="grow">Split <b className="num">{fmt(s)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
                 <button className="btn primary" onClick={() => save("Sale saved")} disabled={saving || (!dirty && exists)}>{saving ? "Saving…" : !dirty && exists ? "Saved" : "Save sale"}</button>
@@ -262,6 +267,8 @@ export default function DailyEntry({ navReq, injectReq }) {
             <tr className="big"><td>Total expense</td><td>{fmt(e)}</td></tr>
             <tr><td>Sale − expense</td><td className={s - e < 0 ? "neg" : ""}>{fmt(s - e)}</td></tr>
             <tr><td>Paid from cash / bank / EasyPaisa</td><td>{fmtShort(x.cash)} / {fmtShort(x.bank)} / {fmtShort(x.easypaisa)}</td></tr>
+            {ct ? <tr><td>Credit paid back (cash / bank / EP)</td><td>{fmtShort(cp.cash)} / {fmtShort(cp.bank)} / {fmtShort(cp.easypaisa)}</td></tr> : null}
+            {cg ? <tr><td>Food given on credit</td><td>{fmt(cg)}</td></tr> : null}
             {vt ? <tr><td>Vendor payments (cash / bank / EP)</td><td>{fmtShort(v.cash)} / {fmtShort(v.bank)} / {fmtShort(v.easypaisa)}</td></tr> : null}
             <tr className="big"><td>Cash in hand</td><td className={l.cash < 0 ? "neg" : ""}>{fmt(l.cash)}</td></tr>
             <tr><td>Bank left</td><td className={l.bank < 0 ? "neg" : ""}>{fmt(l.bank)}</td></tr>

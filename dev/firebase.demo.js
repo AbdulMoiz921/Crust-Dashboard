@@ -39,6 +39,9 @@ function seed() {
     vendors: { v1: { name: "Ali Chicken Shop", cat: "Meat / chicken", openingDue: 5000, phone: "" } },
     vbills: { b1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 3)), vendorId: "v1", vendorName: "Ali Chicken Shop", cat: "Meat / chicken", desc: "40 kg chicken", amt: 20000 } },
     vpays: {},
+    customers: { k1: { name: "Shahid (bank office)", phone: "", openingDue: 0 } },
+    cbills: { cb1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 4)), customerId: "k1", customerName: "Shahid (bank office)", desc: "Office lunch, 6 pizzas", amt: 9000 } },
+    cpays: {},
     capital: { c1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 1)), type: "in", person: "Owner", desc: "Opening investment", amt: 100000, from: "bank" } },
     closings: {},
   };

@@ -4,7 +4,7 @@ rules_version = '2';
 // Publish: Firebase console → Firestore Database → Rules → paste this file → Publish.
 //
 // Every person's access lives in users/{uid}: { role: "admin" | "manager" | "cashier" | "viewer" | "custom",
-// perms: { dash, entry, emp, close, ven, cap: "none" | "view" | "edit" }, active: bool }.
+// perms: { dash, entry, emp, close, ven, cust, cap: "none" | "view" | "edit" }, active: bool }.
 // Admins can do everything; everyone else is limited page by page.
 
 service cloud.firestore {
@@ -79,6 +79,19 @@ service cloud.firestore {
     match /vpays/{id} {
       allow read: if canView('ven') || canView('dash') || canView('close');
       allow write: if canEdit('ven');
+    }
+    // credit customers: food given now, paid later
+    match /customers/{id} {
+      allow read: if canView(cust) || canView(dash) || canView(close) || canView(entry);
+      allow write: if canEdit(cust);
+    }
+    match /cbills/{id} {
+      allow read: if canView(cust) || canView(dash) || canView(close) || canView(entry);
+      allow write: if canEdit(cust);
+    }
+    match /cpays/{id} {
+      allow read: if canView(cust) || canView(dash) || canView(close) || canView(entry);
+      allow write: if canEdit(cust);
     }
     match /capital/{id} {
       allow read: if canView('cap') || canView('close');

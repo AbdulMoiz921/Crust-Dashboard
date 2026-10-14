@@ -11,6 +11,7 @@ Cash book for **Crust House Commercial**: the daily sheet (sale by Cash / Bank /
 | Employees | Staff list, monthly salary, advances (from the daily book or "Give advance"), ID card photos (CNIC front/back), each person's account |
 | Month closing | Opening → received → paid out → closing for Cash, Bank and EasyPaisa; salary sheet (salary − absent days − advances − deduction + bonus); close / reopen month |
 | Vendors | Unpaid bills, payments, balance owed per vendor, full ledger |
+| Customers | Food given on credit (udhaar), payments received back into Cash / Bank / EasyPaisa, how much each customer owes, full ledger |
 | Capital | Owner/partner investments, setup and equipment spending, withdrawals |
 | Users | Admins add people and choose, page by page, No access / View / Edit |
 
@@ -66,6 +67,7 @@ To try the app without Firebase, run `npm run dev:demo` (<http://localhost:3001>
 | `empDocs/{id}` | employee ID card or other document (photo shrunk in the browser, stored inside the document) |
 | `closings/{YYYY-MM}` | month: opening balances, salary sheet, status; frozen totals once closed |
 | `vendors/{id}`, `vbills/{id}`, `vpays/{id}` | vendor, unpaid bill, vendor payment |
+| `customers/{id}`, `cbills/{id}`, `cpays/{id}` | credit customer, food given on credit, payment received |
 | `capital/{id}` | capital entry |
 | `users/{uid}`, `requests/{uid}`, `meta/setup` | access profile, pending sign-up, first-owner marker |
 
