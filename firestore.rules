@@ -4,7 +4,7 @@ rules_version = '2';
 // Publish: Firebase console → Firestore Database → Rules → paste this file → Publish.
 //
 // Every person's access lives in users/{uid}: { role: "admin" | "manager" | "cashier" | "viewer" | "custom",
-// perms: { dash, entry, emp, close, ven, cust, cap: "none" | "view" | "edit" }, active: bool }.
+// perms: { dash, entry, emp, close, att, ven, cust, cap: "none" | "view" | "edit" }, active: bool }.
 // Admins can do everything; everyone else is limited page by page.
 
 service cloud.firestore {
@@ -53,7 +53,7 @@ service cloud.firestore {
       allow write: if canEdit('entry') || canEdit('emp');   // Employees → Give advance writes the day too
     }
     match /employees/{id} {
-      allow read: if canView('emp') || canView('entry') || canView('close');
+      allow read: if canView('emp') || canView('entry') || canView('close') || canView('att');
       allow write: if canEdit('emp');
     }
     // employee ID cards and other documents (the file is stored inside the document).
@@ -63,6 +63,11 @@ service cloud.firestore {
       allow create, update: if canEdit('emp') && request.resource.data.empId is string
         && request.resource.data.data is string && request.resource.data.data.size() < 1000000;
       allow delete: if canEdit('emp');
+    }
+    // attendance/{YYYY-MM-DD}: { marks: { employeeId: "P" | "A" | "H" | "L" | "O" } }
+    match /attendance/{date} {
+      allow read: if canView('att') || canView('emp') || canView('close');
+      allow write: if canEdit('att');
     }
     match /closings/{id} {
       allow read: if active();

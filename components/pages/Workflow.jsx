@@ -12,6 +12,7 @@ const STEPS = [
   ["Any time · Vendors", "Unpaid bills", "On the Vendors page, add a bill you will pay later. When you pay, record the payment and the account it came from. Each vendor shows how much we still owe."],
   ["Any time · Customers", "Food on credit", "If a customer takes food now and pays later, add it on the Customers page instead of the day’s sale. When they pay, record it with the account it came into. Each customer shows how much they owe."],
   ["Any time · Capital", "Capital", "Record money an owner or partner puts in, setup and equipment spending, and owner withdrawals, with the account used."],
+  ["Every day · Attendance", "Mark attendance", "On the Attendance page pick the date and tap P, A, H, L or O for each person, or Mark all present. Month closing takes absent days from it."],
   ["Month end · Closing", "Close the month", "Month closing shows opening, received, paid out and closing for cash, bank and EasyPaisa, and each employee’s salary minus advances. Tick Paid, then Close month to lock it."],
   ["Admin · Users", "Users and access", "Admins add people on the Users page and choose, page by page, whether each person can view or edit."],
   ["Any page · Excel", "Export to Excel", "Every page has an Export to Excel button for the range or month you are looking at."],

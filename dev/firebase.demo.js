@@ -42,6 +42,7 @@ function seed() {
     customers: { k1: { name: "Shahid (bank office)", phone: "", openingDue: 0 } },
     cbills: { cb1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 4)), customerId: "k1", customerName: "Shahid (bank office)", desc: "Office lunch, 6 pizzas", amt: 9000 } },
     cpays: {},
+    attendance: {},
     capital: { c1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 1)), type: "in", person: "Owner", desc: "Opening investment", amt: 100000, from: "bank" } },
     closings: {},
   };
@@ -67,6 +68,10 @@ function emit(col, id) {
 export const configured = true;
 export const newId = () => "d" + Math.random().toString(36).slice(2, 12);
 export const saveDoc = async (col, id, data) => { (load()[col] ||= {})[id] = JSON.parse(JSON.stringify(data)); persist(); emit(col, id); };
+const DEL = { __delete__: true };
+export const removeField = () => DEL;
+const deepMerge = (t, src) => { for (const [k, v] of Object.entries(src)) { if (v === DEL) delete t[k]; else if (v && typeof v === "object" && !Array.isArray(v)) deepMerge(t[k] ||= {}, v); else t[k] = v; } return t; };
+export const mergeDoc = async (col, id, data) => { const s = load(); deepMerge((s[col] ||= {})[id] ||= {}, JSON.parse(JSON.stringify(data, (k, v) => v === DEL ? "__DEL__" : v), (k, v) => v === "__DEL__" ? DEL : v)); persist(); emit(col, id); };
 export const patchDoc = async (col, id, data) => { const s = load(); if (!s[col]?.[id]) throw Object.assign(new Error("missing"), { code: "not-found" }); Object.assign(s[col][id], data); persist(); emit(col, id); };
 export const removeDoc = async (col, id) => { delete (load()[col] || {})[id]; persist(); emit(col, id); };
 export const readDoc = async (col, id) => { const v = load()[col]?.[id]; return v ? { ...v, id } : null; };

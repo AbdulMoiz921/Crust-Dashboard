@@ -139,7 +139,7 @@ function Account({ m, month, editable, addAdvance }) {
   const [a, setA] = useState({ date: today(), amt: "", from: "cash", note: "" });
   const [busy, setBusy] = useState(false);
   const c = D.closings.get(month), closed = c?.status === "closed";
-  const r = (closed && c.rows?.find(x => x.id === m.id)) || salaryRow(m, month, c, D.days);
+  const r = (closed && c.rows?.find(x => x.id === m.id)) || salaryRow(m, month, c, D);
   const all = advancesFor(m, D.days, null).reverse();
   const byMonth = {}; all.forEach(x => (byMonth[x.date.slice(0, 7)] ||= []).push(x));
   const hist = [...D.closings.values()].filter(x => x.status === "closed" && x.rows?.some(y => y.id === m.id)).sort((x, y) => x.month < y.month ? 1 : -1);

@@ -106,7 +106,8 @@ export default function MonthClosing() {
           <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Employee</th><th>Salary</th><th>Absent days</th><th>Absent cut</th><th>Advances</th><th>Deduction</th><th>Bonus</th><th>To pay</th><th>Pay from</th><th>Paid</th></tr></thead>
             <tbody>{rows.map(r => (
               <tr key={r.id}><td><b>{r.name}</b><div className="sub">{r.role}</div></td><td>{fmt(r.base)}</td>
-                <td>{ro ? r.absent : <NumInput step="0.5" max="31" aria-label="Absent days" value={r.absent || ""} onChange={v => setSal(r.id, "absent", v === "" ? 0 : v)} />}</td>
+                <td>{ro ? r.absent : <NumInput step="0.5" max="31" aria-label="Absent days" value={r.absent || ""} onChange={v => setSal(r.id, "absent", v === "" ? null : v)} />}
+                  {r.absentSrc && <div className="sub">{r.absentSrc === "attendance" ? "from attendance" : "typed in"}</div>}</td>
                 <td>{fmt(r.absentDed)}</td><td>{fmt(r.adv)}</td>
                 <td>{ro ? fmt(r.ded) : <NumInput aria-label="Deduction" value={r.ded || ""} onChange={v => setSal(r.id, "deduction", v === "" ? 0 : v)} />}</td>
                 <td>{ro ? fmt(r.bonus) : <NumInput aria-label="Bonus" value={r.bonus || ""} onChange={v => setSal(r.id, "bonus", v === "" ? 0 : v)} />}</td>

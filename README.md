@@ -10,6 +10,7 @@ Cash book for **Crust House Commercial**: the daily sheet (sale by Cash / Bank /
 | Daily entry | One record per day: sale by payment type, expenses with "paid from", riders with orders, bike km and petrol (km × rate), day summary |
 | Employees | Staff list, monthly salary, advances (from the daily book or "Give advance"), ID card photos (CNIC front/back), each person's account |
 | Month closing | Opening → received → paid out → closing for Cash, Bank and EasyPaisa; salary sheet (salary − absent days − advances − deduction + bonus); close / reopen month |
+| Attendance | Mark each employee Present / Absent / Half day / Leave / Day off by date; monthly register; feeds absent days into the salary sheet |
 | Vendors | Unpaid bills, payments, balance owed per vendor, full ledger |
 | Customers | Food given on credit (udhaar), payments received back into Cash / Bank / EasyPaisa, how much each customer owes, full ledger |
 | Capital | Owner/partner investments, setup and equipment spending, withdrawals |
@@ -67,6 +68,7 @@ To try the app without Firebase, run `npm run dev:demo` (<http://localhost:3001>
 | `empDocs/{id}` | employee ID card or other document (photo shrunk in the browser, stored inside the document) |
 | `closings/{YYYY-MM}` | month: opening balances, salary sheet, status; frozen totals once closed |
 | `vendors/{id}`, `vbills/{id}`, `vpays/{id}` | vendor, unpaid bill, vendor payment |
+| `attendance/{YYYY-MM-DD}` | one day's attendance marks for every employee |
 | `customers/{id}`, `cbills/{id}`, `cpays/{id}` | credit customer, food given on credit, payment received |
 | `capital/{id}` | capital entry |
 | `users/{uid}`, `requests/{uid}`, `meta/setup` | access profile, pending sign-up, first-owner marker |
