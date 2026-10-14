@@ -13,6 +13,7 @@ Cash book for **Crust House Commercial**: the daily sheet (sale by Cash / Bank /
 | Attendance | Mark each employee Present / Absent / Half day / Leave / Day off by date; monthly register; feeds absent days into the salary sheet |
 | Vendors | Unpaid bills, payments, balance owed per vendor, full ledger |
 | Customers | Food given on credit (udhaar), payments received back into Cash / Bank / EasyPaisa, how much each customer owes, full ledger |
+| Foodpanda | Foodpanda orders totals, payouts (added to Bank automatically), commission, and what Foodpanda still owes |
 | Capital | Owner/partner investments, setup and equipment spending, withdrawals |
 | Users | Admins add people and choose, page by page, No access / View / Edit |
 
@@ -70,6 +71,7 @@ To try the app without Firebase, run `npm run dev:demo` (<http://localhost:3001>
 | `vendors/{id}`, `vbills/{id}`, `vpays/{id}` | vendor, unpaid bill, vendor payment |
 | `attendance/{YYYY-MM-DD}` | one day's attendance marks for every employee |
 | `customers/{id}`, `cbills/{id}`, `cpays/{id}` | credit customer, food given on credit, payment received |
+| `fpsales/{id}`, `fppays/{id}` | Foodpanda orders total, Foodpanda payout into Bank (with commission) |
 | `capital/{id}` | capital entry |
 | `users/{uid}`, `requests/{uid}`, `meta/setup` | access profile, pending sign-up, first-owner marker |
 

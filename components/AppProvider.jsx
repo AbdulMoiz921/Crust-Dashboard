@@ -8,7 +8,7 @@ export const useApp = () => useContext(AppCtx);
 
 const empty = () => ({
   days: new Map(), emps: new Map(), closings: new Map(), capital: new Map(),
-  vendors: new Map(), vbills: new Map(), vpays: new Map(), customers: new Map(), cbills: new Map(), cpays: new Map(), attendance: new Map(),
+  vendors: new Map(), vbills: new Map(), vpays: new Map(), customers: new Map(), cbills: new Map(), cpays: new Map(), attendance: new Map(), fpsales: new Map(), fppays: new Map(),
   users: new Map(), requests: new Map(),
 });
 
@@ -90,6 +90,10 @@ export default function AppProvider({ children }) {
       keyed("cbills", "cbills", d => d.id, d => !!d.date);
       keyed("cpays", "cpays", d => d.id, d => !!d.date);
     } else { skip("customers"); skip("cbills"); skip("cpays"); }
+    if (canRead.foodpanda) {
+      keyed("fpsales", "fpsales", d => d.id, d => !!d.date);
+      keyed("fppays", "fppays", d => d.id, d => !!d.date);
+    } else { skip("fpsales"); skip("fppays"); }
     canRead.attendance ? keyed("attendance", "attendance", d => d.date, d => !!d.date) : skip("attendance");
     canRead.capital ? keyed("capital", "capital", d => d.id, d => !!d.date) : skip("capital");
     if (canRead.users) { keyed("users", "users"); keyed("requests", "requests"); }

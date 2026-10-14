@@ -43,6 +43,8 @@ function seed() {
     cbills: { cb1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 4)), customerId: "k1", customerName: "Shahid (bank office)", desc: "Office lunch, 6 pizzas", amt: 9000 } },
     cpays: {},
     attendance: {},
+    fpsales: { f1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 7)), amt: 24000, orders: 18, note: "Week 1 orders" } },
+    fppays: {},
     capital: { c1: { date: iso(new Date(base.getFullYear(), base.getMonth(), 1)), type: "in", person: "Owner", desc: "Opening investment", amt: 100000, from: "bank" } },
     closings: {},
   };
