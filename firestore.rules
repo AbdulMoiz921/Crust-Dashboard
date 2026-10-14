@@ -85,18 +85,20 @@ service cloud.firestore {
       allow read: if canView('ven') || canView('dash') || canView('close');
       allow write: if canEdit('ven');
     }
-    // credit customers: food given now, paid later
+    // credit customers: food given now, paid later.
+    // Daily entry editors can also add a customer and record that day's credit or payments.
     match /customers/{id} {
-      allow read: if canView(cust) || canView(dash) || canView(close) || canView(entry);
-      allow write: if canEdit(cust);
+      allow read: if canView('cust') || canView('dash') || canView('close') || canView('entry');
+      allow create: if canEdit('cust') || canEdit('entry');
+      allow update, delete: if canEdit('cust');
     }
     match /cbills/{id} {
-      allow read: if canView(cust) || canView(dash) || canView(close) || canView(entry);
-      allow write: if canEdit(cust);
+      allow read: if canView('cust') || canView('dash') || canView('close') || canView('entry');
+      allow write: if canEdit('cust') || canEdit('entry');
     }
     match /cpays/{id} {
-      allow read: if canView(cust) || canView(dash) || canView(close) || canView(entry);
-      allow write: if canEdit(cust);
+      allow read: if canView('cust') || canView('dash') || canView('close') || canView('entry');
+      allow write: if canEdit('cust') || canEdit('entry');
     }
     match /capital/{id} {
       allow read: if canView('cap') || canView('close');

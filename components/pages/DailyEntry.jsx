@@ -5,10 +5,10 @@ import { Confirm, NumInput, SourceSelect, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, nice, niceLong, num } from "@/lib/format";
 import {
   CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, vpayBySrc, leftBySrc,
-  prevDay, activeEmps, matchEmp, srcKey, creditGiven, cpayBySrc,
+  prevDay, activeEmps, matchEmp, srcKey, creditGiven, cpayBySrc, SOURCES, custBal, byName,
 } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
-import { saveDoc, removeDoc, isDenied } from "@/lib/firebase";
+import { saveDoc, removeDoc, newId, isDenied } from "@/lib/firebase";
 import { exportRange } from "@/lib/excel";
 
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -159,15 +159,14 @@ export default function DailyEntry({ navReq, injectReq }) {
                     <NumInput value={draft.sale[k]} onChange={val => update(n => { n.sale[k] = val; })} /></label>
                 ))}
               </div>
-              <p className="credit-note">
-                Food given on credit? Don’t count it here; record it on the <b>Customers</b> page.
-                {(cg || ct) ? <> On {nice(draft.date)}: credit given <b>{fmt(cg)}</b>{ct ? <>, credit paid back <b>{fmt(ct)}</b> (counted in the accounts below)</> : null}.</> : null}
-              </p>
+              <p className="credit-note">Food given on credit, or a customer paying back old credit? Don’t count it in this sale; use <b>Credit customers</b> below.</p>
               {canWrite && <div className="bar" style={{ marginTop: 12 }}>
                 <span className="grow">Split <b className="num">{fmt(s)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
                 <button className="btn primary" onClick={() => save("Sale saved")} disabled={saving || (!dirty && exists)}>{saving ? "Saving…" : !dirty && exists ? "Saved" : "Save sale"}</button>
               </div>}
             </div>
+
+            <CreditToday date={draft.date} editable={canWrite} />
 
             <div className="card">
               <h2>Daily expense <small>{p ? `${fmt(otherExpOf(draft))} + rider petrol ${fmt(p)} = ${fmt(e)}` : fmt(e)}</small></h2>
@@ -302,6 +301,103 @@ function SplitStatus({ total, split, onFill }) {
     <div className="split-note warn">
       <span><b>{fmt(gap)}</b> still to split</span>
       <span className="split-fill">Put it in: {[["cash", "Cash"], ["bank", "Bank"], ["easypaisa", "EasyPaisa"]].map(([k, l]) => <button key={k} type="button" className="chip" onClick={() => onFill(k)}>{l}</button>)}</span>
+    </div>
+  );
+}
+
+// Credit customers on this date: payments received go into that day's Cash / Bank / EasyPaisa,
+// food given on credit adds to what the customer owes. Saved straight away to the Customers records.
+function CreditToday({ date, editable }) {
+  const { D, me, toast } = useApp();
+  const [mode, setMode] = useState("pay"); // "pay" | "credit"
+  const [f, setF] = useState({ customerId: "", newName: "", amt: "", to: "cash", note: "" });
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [askId, setAskId] = useState(null);
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const customers = [...D.customers.values()].sort(byName);
+  const closed = D.closings.get(date.slice(0, 7))?.status === "closed";
+  const pays = [...D.cpays.values()].filter(p => p.date === date);
+  const credits = [...D.cbills.values()].filter(b => b.date === date);
+  const cust = D.customers.get(f.customerId);
+  const name = id => D.customers.get(id)?.name;
+
+  async function add() {
+    setMsg("");
+    const amt = +f.amt;
+    if (closed) return setMsg("This month is closed. Reopen it in Month closing first.");
+    if (f.customerId === "new" && !f.newName.trim()) return setMsg("Type the new customer’s name.");
+    if (!f.customerId) return setMsg("Choose the customer.");
+    if (!(amt > 0)) return setMsg("Enter the amount.");
+    setBusy(true);
+    try {
+      let id = f.customerId, cname = cust?.name;
+      if (id === "new") {
+        cname = f.newName.trim();
+        const dup = customers.find(c => (c.name || "").toLowerCase() === cname.toLowerCase());
+        if (dup) id = dup.id;
+        else { id = newId("customers"); await saveDoc("customers", id, { name: cname, phone: "", openingDue: 0, note: "", createdAt: new Date().toISOString() }); }
+      }
+      const at = new Date().toISOString();
+      if (mode === "pay") {
+        await saveDoc("cpays", newId("cpays"), { date, customerId: id, customerName: cname, amt, to: f.to, note: f.note.trim(), createdAt: at, createdBy: me.uid });
+        toast(`Received ${fmt(amt)} from ${cname} in ${SOURCES[f.to]}`);
+      } else {
+        await saveDoc("cbills", newId("cbills"), { date, customerId: id, customerName: cname, desc: f.note.trim(), amt, createdAt: at, createdBy: me.uid });
+        toast(`${fmt(amt)} on credit added for ${cname}`);
+      }
+      setF(p => ({ ...p, customerId: id, newName: "", amt: "", note: "" }));
+    } catch (e) { setMsg(isDenied(e) ? "You don’t have permission to record customer credit." : "Could not save. Try again."); }
+    setBusy(false);
+  }
+  async function del(kind, id) {
+    try { await removeDoc(kind === "pay" ? "cpays" : "cbills", id); setAskId(null); toast("Deleted"); }
+    catch { toast("Could not delete. Try again."); }
+  }
+
+  const rows = [
+    ...pays.map(p => ({ kind: "pay", id: p.id, who: name(p.customerId) || p.customerName, what: "Paid back · " + SOURCES[srcKey(p.to)], note: p.note, amt: +p.amt || 0 })),
+    ...credits.map(b => ({ kind: "credit", id: b.id, who: name(b.customerId) || b.customerName, what: "Food on credit", note: b.desc, amt: +b.amt || 0 })),
+  ];
+  const owes = cust ? custBal(cust, D.cbills, D.cpays).owes : 0;
+
+  return (
+    <div className="card">
+      <h2>Credit customers <small>{nice(date)}</small></h2>
+      {rows.length > 0 && <div className="credit-list">
+        {rows.map(r => (
+          <div className={"credit-row " + r.kind} key={r.kind + r.id}>
+            <div><b>{r.who}</b><span>{r.what}{r.note ? " · " + r.note : ""}</span></div>
+            <b className="num">{r.kind === "pay" ? "+ " : ""}{fmt(r.amt)}</b>
+            {editable && !closed && (askId === r.id ? <Confirm text="Delete?" yes="Yes" no="No" onYes={() => del(r.kind, r.id)} onNo={() => setAskId(null)} />
+              : <button type="button" className="x" aria-label="Delete" onClick={() => setAskId(r.id)}>×</button>)}
+          </div>
+        ))}
+      </div>}
+      {editable && !closed && <>
+        <div className="seg" style={{ margin: "4px 0 10px" }}>
+          <button type="button" className="chip" aria-pressed={mode === "pay"} onClick={() => setMode("pay")}>Customer paid back</button>
+          <button type="button" className="chip" aria-pressed={mode === "credit"} onClick={() => setMode("credit")}>Food given on credit</button>
+        </div>
+        <div className="form2">
+          <label className="field">Customer<select value={f.customerId} onChange={e => set("customerId", e.target.value)}>
+            <option value="">Choose customer…</option>
+            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="new">+ New customer…</option>
+          </select></label>
+          {f.customerId === "new" && <label className="field">New customer’s name<input type="text" value={f.newName} onChange={e => set("newName", e.target.value)} placeholder="e.g. Shahid (bank office)" /></label>}
+          <label className="field">Amount (Rs)<NumInput value={f.amt} onChange={v => set("amt", v)} /></label>
+          {mode === "pay" && <label className="field">Received in<SourceSelect value={f.to} onChange={v => set("to", v)} /></label>}
+          <label className="field">{mode === "pay" ? "Note" : "Details / bill no."}<input type="text" value={f.note} onChange={e => set("note", e.target.value)} placeholder={mode === "pay" ? "optional" : "e.g. 2 large pizzas, bill #45"} /></label>
+        </div>
+        <div className="bar" style={{ marginTop: 10 }}>
+          <span className="grow sub">{msg ? <span className="neg">{msg}</span> : cust ? `${cust.name} owes ${fmt(owes)}` : ""}</span>
+          {mode === "pay" && cust && owes > 0 && <button type="button" className="btn" onClick={() => set("amt", owes)}>Full amount</button>}
+          <button type="button" className="btn primary" onClick={add} disabled={busy}>{mode === "pay" ? "Add payment" : "Add credit"}</button>
+        </div>
+      </>}
+      {closed && <p className="hint">This month is closed.</p>}
+      <p className="hint">{mode === "pay" ? "A payment is added to this day’s Cash, Bank or EasyPaisa (see Day summary), not to the sale." : "Credit food isn’t money in, so it’s not part of the sale; it’s added to what the customer owes."}</p>
     </div>
   );
 }
