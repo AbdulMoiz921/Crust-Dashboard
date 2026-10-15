@@ -9,7 +9,7 @@ const STEPS = [
   ["Step 5 · Save", "Check the summary, then save", "The summary matches the bottom of your sheet: total sale, total expense, each payment type and cash in hand."],
   ["Step 6 · Review", "Dashboard with filters", "Today’s totals sit at the top. Choose today, last 7 days, a month or a custom range to see totals, charts, riders and every day in a table."],
   ["Any day · Advance", "Salary advance", "In Daily entry pick “Salary advance” and the employee, or use Give advance on the Employees page. It is counted as that day’s expense and added to the employee’s account."],
-  ["Any time · Vendors", "Unpaid bills", "On the Vendors page, add a bill you will pay later. When you pay, record the payment and the account it came from. Each vendor shows how much we still owe."],
+  ["Any time · Vendors", "Unpaid bills", "On the Vendors page, add a bill you will pay later and record payments to keep each vendor’s balance. Enter the actual payment as an expense in Daily entry; the Vendors page doesn’t change cash or bank."],
   ["Any time · Customers", "Food on credit", "If a customer takes food now and pays later, add it on the Customers page instead of the day’s sale. When they pay, record it with the account it came into. Each customer shows how much they owe."],
   ["Any time · Foodpanda", "Foodpanda", "Add Foodpanda orders on the Foodpanda page, not in the day’s sale. When Foodpanda pays, add the payout and commission; the money goes into Bank."],
   ["Any time · Capital", "Capital", "Record money an owner or partner puts in, setup and equipment spending, and owner withdrawals, with the account used."],
@@ -37,7 +37,6 @@ const DIAGRAM = `flowchart LR
   Q[Capital] --> M
   R[Vendor unpaid bill] --> S[Owed to vendor]
   T[Vendor payment] --> S
-  T --> M
   M --> N[Closing cash / bank / EasyPaisa]
   U[Food on credit] --> X[Customer owes us]
   Y[Customer pays back] --> X

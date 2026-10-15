@@ -4,7 +4,7 @@ import { useApp } from "../AppProvider";
 import { Confirm, NumInput, SourceSelect, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, nice, niceLong, num } from "@/lib/format";
 import {
-  CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, vpayBySrc, leftBySrc,
+  CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, leftBySrc,
   prevDay, activeEmps, matchEmp, srcKey, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
 } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
@@ -102,7 +102,7 @@ export default function DailyEntry({ navReq, injectReq }) {
   }
 
   const s = saleOf(draft), e = expOf(draft), p = petrolDay(draft);
-  const x = expBySrc(draft), l = leftBySrc(draft, D), v = vpayBySrc(D.vpays, draft.date, draft.date), vt = v.cash + v.bank + v.easypaisa;
+  const x = expBySrc(draft), l = leftBySrc(draft, D);
   const km = draft.riders.reduce((a, r) => a + kmOf(r), 0);
   const fpDay = fpPaid(D.fppays, draft.date, draft.date);
   const cg = creditGiven(D.cbills, draft.date, draft.date), cp = cpayBySrc(D.cpays, draft.date, draft.date), ct = cp.cash + cp.bank + cp.easypaisa;
@@ -270,7 +270,6 @@ export default function DailyEntry({ navReq, injectReq }) {
             {ct ? <tr><td>Credit paid back (cash / bank / EP)</td><td>{fmtShort(cp.cash)} / {fmtShort(cp.bank)} / {fmtShort(cp.easypaisa)}</td></tr> : null}
             {cg ? <tr><td>Food given on credit</td><td>{fmt(cg)}</td></tr> : null}
             {fpDay ? <tr><td>Foodpanda payment into bank</td><td>+ {fmt(fpDay)}</td></tr> : null}
-            {vt ? <tr><td>Vendor payments (cash / bank / EP)</td><td>{fmtShort(v.cash)} / {fmtShort(v.bank)} / {fmtShort(v.easypaisa)}</td></tr> : null}
             <tr className="big"><td>Cash in hand</td><td className={l.cash < 0 ? "neg" : ""}>{fmt(l.cash)}</td></tr>
             <tr><td>Bank left</td><td className={l.bank < 0 ? "neg" : ""}>{fmt(l.bank)}</td></tr>
             <tr><td>EasyPaisa left</td><td className={l.easypaisa < 0 ? "neg" : ""}>{fmt(l.easypaisa)}</td></tr>

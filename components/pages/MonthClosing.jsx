@@ -73,8 +73,8 @@ export default function MonthClosing() {
         <Kpi label={`Sale · ${monthShort(month)}`} value={f.sale} sub={`${f.n} day${f.n === 1 ? "" : "s"} recorded`} />
         <Kpi label="Expenses" value={f.exp} sub={`incl. petrol ${fmt(f.petrol)}, advances ${fmt(f.adv)}`} />
         <Kpi label="Salary still to pay" value={toPay} sub={`salary cost ${fmt(salaryCost)}`} />
-        <Kpi label="Profit after salary" value={profit} sub="sale + credit + Foodpanda − commission − expenses − vendor bills − salaries" />
-        <Kpi label="Owed to vendors" value={f.owed} neg={f.owed > 0} sub={`at month end · bills ${fmt(f.vbills)}`} />
+        <Kpi label="Profit after salary" value={profit} sub="sale + credit + Foodpanda − commission − expenses − salaries" />
+        <Kpi label="Owed to vendors" value={f.owed} neg={f.owed > 0} sub="unpaid vendor bills at month end" />
         <Kpi label="Customers owe us" value={f.recv} sub="credit not paid back at month end" />
         <Kpi label="Foodpanda sale" value={f.fpSale} sub={`received ${fmt(f.fpPay)} · commission ${fmt(f.fpFee)}`} />
         <Kpi label="Foodpanda owes us" value={f.fpOwes} sub="at month end" />
@@ -96,11 +96,10 @@ export default function MonthClosing() {
           <tr><td>+ Capital invested</td><td>{money(f.capIn.cash, "+ ")}</td><td>{money(f.capIn.bank, "+ ")}</td><td>{money(f.capIn.easypaisa, "+ ")}</td><td>{money(sum3(f.capIn), "+ ")}</td></tr>
           <tr><td>− Expenses, petrol &amp; advances</td><td>{money(f.out.cash, "− ")}</td><td>{money(f.out.bank, "− ")}</td><td>{money(f.out.easypaisa, "− ")}</td><td>{money(f.exp, "− ")}</td></tr>
           <tr><td>− Capital spent &amp; withdrawn</td><td>{money(f.capOut.cash, "− ")}</td><td>{money(f.capOut.bank, "− ")}</td><td>{money(f.capOut.easypaisa, "− ")}</td><td>{money(sum3(f.capOut), "− ")}</td></tr>
-          <tr><td>− Vendor bills paid</td><td>{money(f.vpay.cash, "− ")}</td><td>{money(f.vpay.bank, "− ")}</td><td>{money(f.vpay.easypaisa, "− ")}</td><td>{money(sum3(f.vpay), "− ")}</td></tr>
           <tr><td>− Salaries paid</td><td>{money(paid.cash, "− ")}</td><td>{money(paid.bank, "− ")}</td><td>{money(paid.easypaisa, "− ")}</td><td>{money(sum3(paid), "− ")}</td></tr>
           <tr className="total"><td>Closing balance</td>{["cash", "bank", "easypaisa"].map(k => <td key={k} className={close[k] < 0 ? "neg" : ""}>{fmt(close[k])}</td>)}<td>{fmt(total)}</td></tr>
         </tbody></table></div>
-        <p className="hint">Expenses, rider petrol and advances come out of the account chosen in “Paid from” when they were entered. Vendor payments come from the Vendors page, capital from the Capital page. Each employee’s remaining salary comes out of the account you pick below once you tick Paid. Opening balances fill in from last month’s closing.</p>
+        <p className="hint">Expenses, rider petrol and advances come out of the account chosen in “Paid from” when they were entered. Pay vendors as an expense in Daily entry; the Vendors page only tracks what you owe. Capital comes from the Capital page. Each employee’s remaining salary comes out of the account you pick below once you tick Paid. Opening balances fill in from last month’s closing.</p>
       </div>
 
       <div className="card">

@@ -120,7 +120,7 @@ export default function Vendors() {
               </div>
             </div>
           </fieldset>
-          <p className="hint">An unpaid bill does not take money out of any account. The payment does, from the account you pick, and Month closing shows it as “Vendor bills paid”.</p>
+          <p className="hint">This page only keeps track of what you owe each vendor. Bills and payments here don’t change cash, bank, EasyPaisa or profit anywhere else, so also enter the actual payment as an expense in <b>Daily entry</b>.</p>
         </div>
       </div>
     </>
