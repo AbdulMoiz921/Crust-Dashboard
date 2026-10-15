@@ -5,7 +5,7 @@ import { Confirm, NumInput, SourceSelect, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, nice, niceLong, num } from "@/lib/format";
 import {
   CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, leftBySrc,
-  prevDay, activeEmps, matchEmp, srcKey, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
+  prevDay, activeEmps, matchEmp, srcKey, capitalPaid, fromCapital, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
 } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
 import { saveDoc, removeDoc, newId, isDenied } from "@/lib/firebase";
@@ -67,7 +67,7 @@ export default function DailyEntry({ navReq, injectReq }) {
       date: draft.date,
       sale: { total: saleOf(draft), cash: num(draft.sale.cash), bank: num(draft.sale.bank), easypaisa: num(draft.sale.easypaisa) },
       expenses: draft.expenses.filter(e => num(e.amt) > 0 || (e.desc || "").trim()).map(e => {
-        const o = { cat: e.cat || "Other", desc: (e.desc || "").trim(), amt: num(e.amt), from: srcKey(e.from) };
+        const o = { cat: e.cat || "Other", desc: (e.desc || "").trim(), amt: num(e.amt), from: e.from === "capital" ? "capital" : srcKey(e.from) };
         if (e.cat === "Salary advance" && e.emp) o.emp = e.emp;
         if (e.note) o.note = e.note;
         return o;
@@ -92,12 +92,16 @@ export default function DailyEntry({ navReq, injectReq }) {
     }
     setSaving(true);
     const rec = clean();
-    try { await saveDoc("days", rec.date, rec); setDraft(clone(rec)); setDirty(false); toast(okMsg); }
+    try {
+      await saveDoc("days", rec.date, rec);
+      const n = await syncCapital(rec, D.days.get(rec.date));
+      setDraft(clone(rec)); setDirty(false); toast(okMsg + (n ? ` · ${n} capital payment${n === 1 ? "" : "s"} added to Capital` : ""));
+    }
     catch (e) { setErr(isDenied(e) ? "You have view-only access, so this day was not saved." : "Could not save. Check your connection and press Save again."); }
     setSaving(false);
   }
   async function del() {
-    try { await removeDoc("days", draft.date); setAskDelete(false); load(draft.date); toast("Day deleted"); }
+    try { await removeDoc("days", draft.date); await syncCapital({ date: draft.date, expenses: [] }, D.days.get(draft.date)); setAskDelete(false); load(draft.date); toast("Day deleted"); }
     catch { setErr("Could not delete. Try again."); }
   }
 
@@ -191,7 +195,7 @@ export default function DailyEntry({ navReq, injectReq }) {
                   ) : (
                     <input className="desc" type="text" value={ex.desc || ""} placeholder="What was it for?" aria-label="Description" onChange={ev => update(n => { n.expenses[i].desc = ev.target.value; })} />
                   )}
-                  <SourceSelect className="from" value={ex.from} aria-label="Paid from" onChange={val => update(n => { n.expenses[i].from = val; })} />
+                  <SourceSelect withCapital className="from" value={ex.from} aria-label="Paid from" onChange={val => update(n => { n.expenses[i].from = val; })} />
                   <NumInput value={ex.amt} aria-label="Amount" onChange={val => update(n => { n.expenses[i].amt = val; })} />
                   <button className="x" aria-label="Remove expense" onClick={() => update(n => { n.expenses.splice(i, 1); })}>×</button>
                 </div>
@@ -265,6 +269,7 @@ export default function DailyEntry({ navReq, injectReq }) {
             <tr><td>Rider petrol</td><td>{fmt(p)}</td></tr>
             <tr><td>Other expenses</td><td>{fmt(e - p)}</td></tr>
             <tr className="big"><td>Total expense</td><td>{fmt(e)}</td></tr>
+            {capitalPaid(draft) ? <tr><td>Paid from capital (not counted)</td><td>{fmt(capitalPaid(draft))}</td></tr> : null}
             <tr><td>Sale − expense</td><td className={s - e < 0 ? "neg" : ""}>{fmt(s - e)}</td></tr>
             <tr><td>Paid from cash / bank / EasyPaisa</td><td>{fmtShort(x.cash)} / {fmtShort(x.bank)} / {fmtShort(x.easypaisa)}</td></tr>
             {ct ? <tr><td>Credit paid back (cash / bank / EP)</td><td>{fmtShort(cp.cash)} / {fmtShort(cp.bank)} / {fmtShort(cp.easypaisa)}</td></tr> : null}
@@ -401,4 +406,20 @@ function CreditToday({ date, editable }) {
       <p className="hint">{mode === "pay" ? "A payment is added to this day’s Cash, Bank or EasyPaisa (see Day summary), not to the sale." : "Credit food isn’t money in, so it’s not part of the sale; it’s added to what the customer owes."}</p>
     </div>
   );
+}
+
+// Expense lines paid from Capital are copied to the Capital page as "Paid from capital" entries with
+// ids tied to the day (d-<date>-<n>), so saving the day again replaces them and deleting the day removes them.
+async function syncCapital(rec, before) {
+  const lines = (rec.expenses || []).filter(fromCapital);
+  const ids = lines.map((_, i) => `d-${rec.date}-${i + 1}`);
+  const old = (before?.expenses || []).filter(fromCapital).map((_, i) => `d-${before.date}-${i + 1}`);
+  for (const [i, e] of lines.entries()) {
+    await saveDoc("capital", ids[i], {
+      date: rec.date, type: "direct", person: "Owner", from: "capital", fromDay: rec.date, amt: +e.amt || 0,
+      desc: [e.cat, e.desc].filter(Boolean).join(" · ") || "Daily entry payment", updatedAt: new Date().toISOString(),
+    });
+  }
+  for (const id of old) if (!ids.includes(id)) await removeDoc("capital", id).catch(() => {});
+  return lines.length;
 }

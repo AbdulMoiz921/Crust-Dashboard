@@ -112,6 +112,9 @@ service cloud.firestore {
     match /capital/{id} {
       allow read: if canView('cap') || canView('close');
       allow write: if canEdit('cap');
+      // Daily entry "Paid from: Capital" lines are mirrored here (ids d-<date>-<n>) by whoever saves the day
+      allow create, update: if canEdit('entry') && id.matches('d-.*') && request.resource.data.type == 'direct' && request.resource.data.from == 'capital';
+      allow delete: if canEdit('entry') && id.matches('d-.*');
     }
 
     // anything else is closed

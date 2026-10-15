@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Kpi, Empty, Confirm, NumInput, SourceSelect } from "../ui";
 import { fmt, today, thisMonth, monthName, nice, parse } from "@/lib/format";
-import { CAP_TYPES, SOURCES, srcKey, capSign, capTotals, capByPerson } from "@/lib/calc";
+import { CAP_TYPES, SOURCES, srcKey, capSign, capTotals, capByPerson, capTypeLabel } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
 import { saveDoc, removeDoc, newId, isDenied } from "@/lib/firebase";
 import { exportCapital } from "@/lib/excel";
@@ -33,10 +33,10 @@ export default function Capital() {
         <button className="btn xl" onClick={() => exportCapital(D, list, p === "all" ? "" : month).then(() => toast("Excel file downloaded"))}>Export to Excel</button>
       </div>
       <div className="kpis">
-        <Kpi main label="Capital invested" value={t.in} sub={scope} />
+        <Kpi main label="Capital invested" value={t.in + t.direct} sub={t.direct ? `${scope} · incl. ${fmt(t.direct)} paid directly in Daily entry` : scope} />
         <Kpi label="Setup / equipment" value={t.spend} sub="spent from capital" />
         <Kpi label="Owner withdrawals" value={t.out} sub="taken out" />
-        <Kpi label="Net capital in business" value={all.in - all.out} sub="all time: invested − withdrawn" />
+        <Kpi label="Net capital in business" value={all.in + all.direct - all.out} sub="all time: invested − withdrawn" />
       </div>
       <div className="emp-grid">
         <div className="view">
@@ -47,10 +47,10 @@ export default function Capital() {
                 <tbody>{list.map(c => (
                   <tr key={c.id} className={"click" + (c.id === sel ? " sel" : "")} tabIndex={0} onClick={() => setSel(c.id)} onKeyDown={e => e.key === "Enter" && setSel(c.id)}>
                     <td>{nice(c.date)}<div className="sub">{parse(c.date).getFullYear()}</div></td>
-                    <td><span className={"pill " + (c.type === "in" ? "closed" : c.type === "out" ? "open" : "off")}>{CAP_TYPES[c.type] || c.type}</span></td>
+                    <td><span className={"pill " + (c.type === "in" || c.type === "direct" ? "closed" : c.type === "out" ? "open" : "off")}>{capTypeLabel(c)}</span>{c.fromDay && <div className="sub">from Daily entry</div>}</td>
                     <td style={{ textAlign: "left" }}>{c.person}</td><td style={{ textAlign: "left", whiteSpace: "normal", minWidth: 140 }}>{c.desc}</td>
-                    <td>{SOURCES[srcKey(c.from)]}</td><td className={capSign(c) < 0 ? "neg" : "pos"}><b>{capSign(c) < 0 ? "− " : "+ "}{fmt(c.amt)}</b></td></tr>))}</tbody>
-                <tfoot><tr><td colSpan={5}>Net (invested − spent − withdrawn)</td><td className={t.in - t.spend - t.out < 0 ? "neg" : ""}>{fmt(t.in - t.spend - t.out)}</td></tr></tfoot>
+                    <td>{c.from === "capital" ? "Owner’s own money" : SOURCES[srcKey(c.from)]}</td><td className={capSign(c) < 0 ? "neg" : "pos"}><b>{capSign(c) < 0 ? "− " : "+ "}{fmt(c.amt)}</b></td></tr>))}</tbody>
+                <tfoot><tr><td colSpan={5}>Net into accounts (invested − spent − withdrawn)</td><td className={t.in - t.spend - t.out < 0 ? "neg" : ""}>{fmt(t.in - t.spend - t.out)}</td></tr></tfoot>
               </table></div>
             ) : <Empty>{loaded.capital ? `No capital entries ${p === "all" ? "yet" : "in this month"}. Use the form to record money put into the restaurant.` : "Loading…"}</Empty>}
           </div>
@@ -76,6 +76,13 @@ function CapitalForm({ c, editable, onDone }) {
   const [askDel, setAskDel] = useState(false);
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
   const people = [...new Set([...D.capital.values()].map(x => (x.person || "").trim()).filter(Boolean))];
+
+  // payments made in Daily entry with "Paid from: Capital" are managed there, not here
+  if (c?.fromDay) return <>
+    <h2>Paid from capital</h2>
+    <p className="hint" style={{ margin: 0 }}>{fmt(c.amt)} for “{c.desc}” was entered in <b>Daily entry</b> on {nice(c.fromDay)} with Paid from: Capital. To change or remove it, open that day in Daily entry and edit the expense line, then save.</p>
+    <div className="bar" style={{ marginTop: 12 }}><span className="grow" /><button className="btn" onClick={onDone}>New entry</button></div>
+  </>;
 
   async function save() {
     const amt = +f.amt;

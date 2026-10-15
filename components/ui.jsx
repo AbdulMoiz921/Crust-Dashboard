@@ -34,10 +34,11 @@ export function NumInput({ value, onChange, ...rest }) {
     onChange={e => onChange(e.target.value === "" ? "" : +e.target.value)} {...rest} />;
 }
 
-export function SourceSelect({ value, onChange, ...rest }) {
+export function SourceSelect({ value, onChange, withCapital, ...rest }) {
   return (
     <select value={value || "cash"} onChange={e => onChange(e.target.value)} {...rest}>
       <option value="cash">Cash</option><option value="bank">Bank</option><option value="easypaisa">EasyPaisa / JazzCash</option>
+      {withCapital && <option value="capital">Capital (owner’s money)</option>}
     </select>
   );
 }

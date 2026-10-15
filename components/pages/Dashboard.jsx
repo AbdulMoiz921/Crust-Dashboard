@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Kpi, Empty, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, niceLong, nice, parse, MONTHS, dim, pad } from "@/lib/format";
-import { saleOf, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, cpayBySrc, creditGiven, totalReceivable, fpSold, fpPaid, fpOwes, leftBySrc, totalOwed, inRange } from "@/lib/calc";
+import { opExpenses, saleOf, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, cpayBySrc, creditGiven, totalReceivable, fpSold, fpPaid, fpOwes, leftBySrc, totalOwed, inRange } from "@/lib/calc";
 import { exportRange } from "@/lib/excel";
 
 const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "Last 7 days"], ["month", "Month"], ["custom", "Custom"]];
@@ -33,7 +33,7 @@ export default function Dashboard({ openDay }) {
     });
     const cp = cpayBySrc(D.cpays, from, to), fpIn = fpPaid(D.fppays, from, to);
     const cat = {};
-    recs.forEach(r => { (r.expenses || []).forEach(e => { const k = e.cat || "Other"; cat[k] = (cat[k] || 0) + (+e.amt || 0); }); const pp = petrolDay(r); if (pp) cat["Rider petrol"] = (cat["Rider petrol"] || 0) + pp; });
+    recs.forEach(r => { opExpenses(r).forEach(e => { const k = e.cat || "Other"; cat[k] = (cat[k] || 0) + (+e.amt || 0); }); const pp = petrolDay(r); if (pp) cat["Rider petrol"] = (cat["Rider petrol"] || 0) + pp; });
     const rid = {};
     recs.forEach(r => (r.riders || []).forEach(rd => {
       const k = (rd.name || "").trim() || "Unnamed";
