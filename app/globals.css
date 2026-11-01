@@ -436,3 +436,7 @@ td select{width:auto;padding:5px 8px}
 /* Capital: choose entries for month closing */
 .cap-pick{margin-bottom:10px;padding:8px 10px;background:var(--surface-2);border-radius:8px}
 .tag.in-closing{background:var(--accent-soft);color:var(--accent);margin:4px 0 0}
+
+/* credit part of the sale (unpaid orders) */
+:root{--credit:#c98500}
+.credit-auto{background:var(--surface-2);color:var(--ink);text-align:right;cursor:default}

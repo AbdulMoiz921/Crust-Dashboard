@@ -5,7 +5,7 @@ import { Confirm, NumInput, SourceSelect, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, nice, niceLong, num } from "@/lib/format";
 import {
   CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, leftBySrc,
-  prevDay, activeEmps, matchEmp, srcKey, capitalPaid, fromCapital, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
+  creditOn, prevDay, activeEmps, matchEmp, srcKey, capitalPaid, fromCapital, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
 } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
 import { saveDoc, removeDoc, newId, isDenied } from "@/lib/firebase";
@@ -38,7 +38,7 @@ export default function DailyEntry({ navReq, injectReq }) {
     const x = r ? clone(r) : blankDay(d);
     x.sale ||= { cash: "", bank: "", easypaisa: "" }; x.expenses ||= []; x.riders ||= [];
     // days saved before the total-first entry have no total: their total is the split
-    if (x.sale.total == null) x.sale.total = r ? saleOf(r) || "" : "";
+    if (x.sale.total == null) x.sale.total = r ? (saleOf(r) + creditGiven(D.cbills, d, d)) || "" : "";
     if (x.petrolRate == null) x.petrolRate = prevDay(D.days, d)?.petrolRate ?? DEFAULT_RATE;
     dateRef.current = d;
     setDraft(x); setDirty(false); setErr(""); setPendingNav(null); setAskDelete(false);
@@ -65,7 +65,7 @@ export default function DailyEntry({ navReq, injectReq }) {
   function clean() {
     return {
       date: draft.date,
-      sale: { total: saleOf(draft), cash: num(draft.sale.cash), bank: num(draft.sale.bank), easypaisa: num(draft.sale.easypaisa) },
+      sale: { total: saleOf(draft) + creditGiven(D.cbills, draft.date, draft.date), cash: num(draft.sale.cash), bank: num(draft.sale.bank), easypaisa: num(draft.sale.easypaisa), credit: creditGiven(D.cbills, draft.date, draft.date) },
       expenses: draft.expenses.filter(e => num(e.amt) > 0 || (e.desc || "").trim()).map(e => {
         const o = { cat: e.cat || "Other", desc: (e.desc || "").trim(), amt: num(e.amt), from: e.from === "capital" ? "capital" : srcKey(e.from) };
         if (e.cat === "Salary advance" && e.emp) o.emp = e.emp;
@@ -85,9 +85,9 @@ export default function DailyEntry({ navReq, injectReq }) {
     const closed = D.closings.get(draft.date.slice(0, 7))?.status === "closed";
     if (closed) { setErr("This month is closed. Reopen it in Month closing to change this day."); return; }
     // the split must add up to the total sale typed in (a day with no total typed just uses the split)
-    const tot = num(draft.sale.total), gap = tot - saleOf(draft);
+    const tot = num(draft.sale.total), gap = tot - saleOf(draft) - creditGiven(D.cbills, draft.date, draft.date);
     if (draft.sale.total !== "" && gap !== 0) {
-      setErr(gap > 0 ? `${fmt(gap)} of the total sale isn’t split yet. Add it to Cash, Bank or EasyPaisa.` : `Cash + Bank + EasyPaisa is ${fmt(-gap)} more than the total sale. Fix the split or the total.`);
+      setErr(gap > 0 ? `${fmt(gap)} of the total sale isn’t split yet. Add it to Cash, Bank or EasyPaisa, or record the unpaid orders under Credit customers.` : `Cash + Bank + EasyPaisa + Credit is ${fmt(-gap)} more than the total sale. Fix the split or the total.`);
       return;
     }
     setSaving(true);
@@ -153,20 +153,22 @@ export default function DailyEntry({ navReq, injectReq }) {
         <fieldset disabled={!canWrite} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div className="view">
             <div className="card">
-              <h2>Sale <small>enter the total, then split it by how customers paid</small></h2>
+              <h2>Sale <small>enter the POS total, then split it by how customers paid</small></h2>
               <div className="sale-total">
-                <label className="field">Total sale for {nice(draft.date)}<NumInput value={draft.sale.total} onChange={val => update(n => { n.sale.total = val; })} placeholder="e.g. 15000" /></label>
-                <SplitStatus total={draft.sale.total} split={s} onFill={k => update(n => { n.sale[k] = num(n.sale[k]) + (num(n.sale.total) - saleOf(n)); })} />
+                <label className="field">Total sale for {nice(draft.date)} (POS total, incl. credit)<NumInput value={draft.sale.total} onChange={val => update(n => { n.sale.total = val; })} placeholder="e.g. 15000" /></label>
+                <SplitStatus total={draft.sale.total} split={s + cg} onFill={k => update(n => { n.sale[k] = num(n.sale[k]) + (num(n.sale.total) - saleOf(n) - cg); })} />
               </div>
               <div className="sales3">
                 {[["cash", "Cash", "--cash"], ["bank", "Bank", "--bank"], ["easypaisa", "EasyPaisa / JazzCash", "--ep"]].map(([k, label, c]) => (
                   <label className="field" key={k}><span className="lbl"><Swatch color={c} />{label}</span>
                     <NumInput value={draft.sale[k]} onChange={val => update(n => { n.sale[k] = val; })} /></label>
                 ))}
+                <label className="field"><span className="lbl"><Swatch color="--credit" />Credit (not paid)</span>
+                  <input type="text" readOnly value={fmt(cg)} className="num credit-auto" aria-label="Credit, filled in from Credit customers" title="Filled in from the Credit customers entries for this day" /></label>
               </div>
-              <p className="credit-note">Food given on credit, or a customer paying back old credit? Don’t count it in this sale; use <b>Credit customers</b> below. Foodpanda orders go on the <b>Foodpanda</b> page.</p>
+              <p className="credit-note">Unpaid (credit) orders are part of the POS total: record them under <b>Credit customers</b> below and the <b>Credit</b> part fills in by itself, so Cash and EasyPaisa are only the money you really collected. When a customer pays later, record it there on the day they pay. Foodpanda orders go on the <b>Foodpanda</b> page.</p>
               {canWrite && <div className="bar" style={{ marginTop: 12 }}>
-                <span className="grow">Split <b className="num">{fmt(s)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
+                <span className="grow">Split <b className="num">{fmt(s + cg)}</b>{err && <span className="neg" style={{ display: "block", fontSize: 13 }}>{err}</span>}</span>
                 <button className="btn primary" onClick={() => save("Sale saved")} disabled={saving || (!dirty && exists)}>{saving ? "Saving…" : !dirty && exists ? "Saved" : "Save sale"}</button>
               </div>}
             </div>
@@ -262,18 +264,18 @@ export default function DailyEntry({ navReq, injectReq }) {
           <h2>Day summary</h2>
           <table className="num"><tbody>
             <tr><td>Date</td><td>{niceLong(draft.date)}</td></tr>
-            <tr className="big"><td>Total sale</td><td>{fmt(s)}</td></tr>
+            <tr className="big"><td>Total sale</td><td>{fmt(s + cg)}</td></tr>
             <tr><td>Cash</td><td>{fmt(draft.sale.cash)}</td></tr>
             <tr><td>Bank</td><td>{fmt(draft.sale.bank)}</td></tr>
             <tr><td>EasyPaisa / JazzCash</td><td>{fmt(draft.sale.easypaisa)}</td></tr>
+            <tr><td>Credit (not paid)</td><td>{fmt(cg)}</td></tr>
             <tr><td>Rider petrol</td><td>{fmt(p)}</td></tr>
             <tr><td>Other expenses</td><td>{fmt(e - p)}</td></tr>
             <tr className="big"><td>Total expense</td><td>{fmt(e)}</td></tr>
             {capitalPaid(draft) ? <tr><td>Paid from capital (not counted)</td><td>{fmt(capitalPaid(draft))}</td></tr> : null}
-            <tr><td>Sale − expense</td><td className={s - e < 0 ? "neg" : ""}>{fmt(s - e)}</td></tr>
+            <tr><td>Sale − expense</td><td className={s + cg - e < 0 ? "neg" : ""}>{fmt(s + cg - e)}</td></tr>
             <tr><td>Paid from cash / bank / EasyPaisa</td><td>{fmtShort(x.cash)} / {fmtShort(x.bank)} / {fmtShort(x.easypaisa)}</td></tr>
             {ct ? <tr><td>Credit paid back (cash / bank / EP)</td><td>{fmtShort(cp.cash)} / {fmtShort(cp.bank)} / {fmtShort(cp.easypaisa)}</td></tr> : null}
-            {cg ? <tr><td>Food given on credit</td><td>{fmt(cg)}</td></tr> : null}
             {fpDay ? <tr><td>Foodpanda payment into bank</td><td>+ {fmt(fpDay)}</td></tr> : null}
             <tr className="big"><td>Cash in hand</td><td className={l.cash < 0 ? "neg" : ""}>{fmt(l.cash)}</td></tr>
             <tr><td>Bank left</td><td className={l.bank < 0 ? "neg" : ""}>{fmt(l.bank)}</td></tr>
@@ -290,7 +292,7 @@ export default function DailyEntry({ navReq, injectReq }) {
 
       {/* phones: totals and Save stay reachable at the bottom while scrolling the form */}
       {canWrite && <div className="savebar">
-        <div><span>{nice(draft.date)} · {dirty ? "unsaved" : exists ? "saved" : "new"}</span><b>Sale {fmt(s)} · Exp {fmt(e)}</b></div>
+        <div><span>{nice(draft.date)} · {dirty ? "unsaved" : exists ? "saved" : "new"}</span><b>Sale {fmt(s + cg)} · Exp {fmt(e)}</b></div>
         <button className="btn primary" onClick={() => save()} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
       </div>}
     </>

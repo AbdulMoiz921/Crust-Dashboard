@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Kpi, Empty, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, niceLong, nice, parse, MONTHS, dim, pad } from "@/lib/format";
-import { opExpenses, saleOf, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, cpayBySrc, creditGiven, totalReceivable, fpSold, fpPaid, fpOwes, leftBySrc, totalOwed, inRange } from "@/lib/calc";
+import { opExpenses, saleOf, totalSaleOf, creditOn, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, cpayBySrc, creditGiven, totalReceivable, fpSold, fpPaid, fpOwes, leftBySrc, totalOwed, inRange } from "@/lib/calc";
 import { exportRange } from "@/lib/excel";
 
 const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "Last 7 days"], ["month", "Month"], ["custom", "Custom"]];
@@ -40,9 +40,11 @@ export default function Dashboard({ openDay }) {
       const o = rid[k] ||= { days: 0, orders: 0, amt: 0, km: 0, petrol: 0 };
       o.days++; o.orders += (rd.orders || []).length; o.amt += riderOrders(rd); o.km += kmOf(rd); o.petrol += petrolOf(rd, r.petrolRate);
     }));
+    const credit = creditGiven(D.cbills, from, to);
     return {
-      cash, bank, ep, exp, out, sale: cash + bank + ep,
-      cp, cpTot: cp.cash + cp.bank + cp.easypaisa, credit: creditGiven(D.cbills, from, to), fpIn, fpSale: fpSold(D.fpsales, from, to),
+      // sale = POS total (collected + credit); paid = what actually came into the accounts
+      cash, bank, ep, exp, out, paid: cash + bank + ep, credit, sale: cash + bank + ep + credit,
+      cp, cpTot: cp.cash + cp.bank + cp.easypaisa, fpIn, fpSale: fpSold(D.fpsales, from, to),
       cats: Object.entries(cat).filter(c => c[1] > 0).sort((a, b) => b[1] - a[1]),
       riders: Object.entries(rid).sort((a, b) => b[1].amt - a[1].amt),
     };
@@ -70,16 +72,16 @@ export default function Dashboard({ openDay }) {
       </div>
 
       <div className="kpis">
-        <Kpi main label="Total sale" value={S.sale} sub={`${n} day${n === 1 ? "" : "s"} recorded`} />
+        <Kpi main label="Total sale" value={S.sale} sub={`${n} day${n === 1 ? "" : "s"} · incl. credit ${fmt(S.credit)}`} />
         <Kpi label="Total expense" value={S.exp} sub={S.sale ? ((S.exp / S.sale) * 100).toFixed(1) + "% of sale" : "—"} />
         <Kpi label="Sale minus expense" value={net} sub={net >= 0 ? "▲ ahead" : "▼ expense is higher"} />
         <Kpi label="Cash in hand" value={inHand} sub={"cash sale − cash paid out" + (S.cp.cash ? " + credit received" : "")} />
         <Kpi label="Owed to vendors" value={owed} neg={owed > 0} sub="unpaid vendor bills now" />
         <Kpi label="Customers owe us" value={recv} sub={"credit not paid back yet" + (S.cpTot ? " · received " + fmt(S.cpTot) + " in range" : "")} />
-        <Kpi label="Food given on credit" value={S.credit} sub="in this range, not in total sale" />
+        <Kpi label="Food given on credit" value={S.credit} sub="part of total sale, not collected that day" />
         <Kpi label="Foodpanda sale" value={S.fpSale} sub={"in this range" + (S.fpIn ? " · " + fmt(S.fpIn) + " paid into bank" : "")} />
         <Kpi label="Foodpanda owes us" value={fpDue} sub="orders not paid out yet" />
-        <Kpi label="Average daily sale" value={n ? S.sale / n : 0} sub={n ? "best: " + fmt(Math.max(...recs.map(saleOf))) : "no days yet"} />
+        <Kpi label="Average daily sale" value={n ? S.sale / n : 0} sub={n ? "best: " + fmt(Math.max(...recs.map(r => totalSaleOf(r, D)))) : "no days yet"} />
       </div>
 
       <div className="grid2">
@@ -91,15 +93,15 @@ export default function Dashboard({ openDay }) {
           <h2>How customers paid <small>{fmt(S.sale)}</small></h2>
           {!S.sale ? <Empty>No sale in this range yet.</Empty> : <>
             <div className="stack" role="img" aria-label="Payment split">
-              {[["Cash", S.cash, "--cash"], ["Bank", S.bank, "--bank"], ["EasyPaisa / JazzCash", S.ep, "--ep"]].filter(x => x[1] > 0).map(([l, v, c]) => <div key={l} style={{ flex: v, background: `var(${c})` }} title={`${l}: ${fmt(v)}`} />)}
+              {[["Cash", S.cash, "--cash"], ["Bank", S.bank, "--bank"], ["EasyPaisa / JazzCash", S.ep, "--ep"], ["Credit (not paid yet)", S.credit, "--credit"]].filter(x => x[1] > 0).map(([l, v, c]) => <div key={l} style={{ flex: v, background: `var(${c})` }} title={`${l}: ${fmt(v)}`} />)}
             </div>
             <div className="legend">
-              {[["Cash", S.cash, "--cash"], ["Bank", S.bank, "--bank"], ["EasyPaisa / JazzCash", S.ep, "--ep"]].map(([l, v, c]) => (
+              {[["Cash", S.cash, "--cash"], ["Bank", S.bank, "--bank"], ["EasyPaisa / JazzCash", S.ep, "--ep"], ["Credit (not paid that day)", S.credit, "--credit"]].map(([l, v, c]) => (
                 <div className="row" key={l}><Swatch color={c} /><span>{l}</span><b className="num">{fmt(v)}</b><span className="pct num">{((v / S.sale) * 100).toFixed(0)}%</span></div>
               ))}
             </div>
           </>}
-          {(S.sale || S.exp || S.cpTot || S.fpIn) ? <>
+          {(S.paid || S.exp || S.cpTot || S.fpIn) ? <>
             <h3 className="eyebrow" style={{ margin: "18px 0 6px" }}>Left in each account</h3>
             <div className="tbl-wrap"><table className="num cards"><thead><tr><th></th><th>Sale</th>{S.cpTot ? <th>Credit paid</th> : null}{S.fpIn ? <th>Foodpanda</th> : null}<th>Expenses</th><th>Left</th></tr></thead><tbody>
               {[["Cash", S.cash, "cash"], ["Bank", S.bank, "bank"], ["EasyPaisa", S.ep, "easypaisa"]].map(([l, v, k]) => {
@@ -135,13 +137,13 @@ export default function Dashboard({ openDay }) {
       <div className="card">
         <h2>Day by day <small>click a day to open or edit it</small></h2>
         {recs.length ? (
-          <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Cash</th><th>Bank</th><th>EasyPaisa</th><th>Total sale</th><th>Expense</th><th>Sale − exp.</th></tr></thead>
+          <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Cash</th><th>Bank</th><th>EasyPaisa</th><th>Credit</th><th>Total sale</th><th>Expense</th><th>Sale − exp.</th></tr></thead>
             <tbody>{recs.slice().reverse().map(r => {
-              const s = saleOf(r), e = expOf(r);
+              const cr = creditOn(D, r.date), s = saleOf(r) + cr, e = expOf(r);
               return <tr key={r.date} className="click" tabIndex={0} onClick={() => openDay(r.date)} onKeyDown={ev => ev.key === "Enter" && openDay(r.date)}>
-                <td>{nice(r.date)}</td><td>{fmt(r.sale?.cash)}</td><td>{fmt(r.sale?.bank)}</td><td>{fmt(r.sale?.easypaisa)}</td><td><b>{fmt(s)}</b></td><td>{fmt(e)}</td><td className={s - e < 0 ? "neg" : ""}>{fmt(s - e)}</td></tr>;
+                <td>{nice(r.date)}</td><td>{fmt(r.sale?.cash)}</td><td>{fmt(r.sale?.bank)}</td><td>{fmt(r.sale?.easypaisa)}</td><td>{fmt(cr)}</td><td><b>{fmt(s)}</b></td><td>{fmt(e)}</td><td className={s - e < 0 ? "neg" : ""}>{fmt(s - e)}</td></tr>;
             })}</tbody>
-            <tfoot><tr><td>Total</td><td>{fmt(S.cash)}</td><td>{fmt(S.bank)}</td><td>{fmt(S.ep)}</td><td>{fmt(S.sale)}</td><td>{fmt(S.exp)}</td><td className={net < 0 ? "neg" : ""}>{fmt(net)}</td></tr></tfoot>
+            <tfoot><tr><td>Total</td><td>{fmt(S.cash)}</td><td>{fmt(S.bank)}</td><td>{fmt(S.ep)}</td><td>{fmt(recs.reduce((a, r) => a + creditOn(D, r.date), 0))}</td><td>{fmt(recs.reduce((a, r) => a + totalSaleOf(r, D), 0))}</td><td>{fmt(S.exp)}</td><td className={net < 0 ? "neg" : ""}>{fmt(net)}</td></tr></tfoot>
           </table></div>
         ) : <Empty>{loaded.days ? <>No days recorded in this range. Open <b>Daily entry</b> to add one.</> : "Loading your days…"}</Empty>}
       </div>
@@ -152,12 +154,12 @@ export default function Dashboard({ openDay }) {
 function TodayStrip() {
   const { D, toast } = useApp();
   const t = today(), r = D.days.get(t);
-  const s = r ? saleOf(r) : 0, e = r ? expOf(r) : 0, c = +r?.sale?.cash || 0, pp = r ? petrolDay(r) : 0;
+  const cr = creditOn(D, t), s = (r ? saleOf(r) : 0) + cr, e = r ? expOf(r) : 0, c = +r?.sale?.cash || 0;
   const inHand = r ? leftBySrc(r, D).cash : cpayBySrc(D.cpays, t, t).cash;
   // eight tiles so the strip fills evenly: 8 across on desktop, 4 on tablets, 2 on phones
   const cells = [
     ["Total sale", s, "hl"], ["Cash", c, "", "--cash"], ["Bank", +r?.sale?.bank || 0, "", "--bank"], ["EasyPaisa / JazzCash", +r?.sale?.easypaisa || 0, "", "--ep"],
-    ["Total expense", e, "hl"], ["Rider petrol", pp], ["Sale − expense", s - e], ["Cash in hand", inHand],
+    ["Credit (not paid)", cr, "", "--credit"], ["Total expense", e, "hl"], ["Sale − expense", s - e], ["Cash in hand", inHand],
   ];
   return (
     <div className="card today">
@@ -183,7 +185,7 @@ function DailyChart({ from, to, openDay }) {
   const list = [];
   for (let d = from, i = 0; d <= to && i < 62; d = addDays(d, 1), i++) list.push(d);
   if (list.length === 1) { list.length = 0; for (let i = 6; i >= 0; i--) list.push(addDays(to, -i)); }
-  const pts = list.map(d => { const r = D.days.get(d); return { d, s: r ? saleOf(r) : 0, e: r ? expOf(r) : 0, has: !!r }; });
+  const pts = list.map(d => { const r = D.days.get(d); return { d, s: (r ? saleOf(r) : 0) + creditOn(D, d), e: r ? expOf(r) : 0, has: !!r }; });
   const max = Math.max(1, ...pts.map(p => Math.max(p.s, p.e)));
   const step = niceStep(max / 4), top = Math.ceil(max / step) * step;
   const W = Math.max(560, list.length * 26 + 60), H = 240, L = 52, R = 8, T = 12, B = 30;

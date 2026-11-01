@@ -70,7 +70,7 @@ export default function MonthClosing() {
 
       <div className="kpis">
         <Kpi main label="Closing balance" value={total} sub="cash + bank + EasyPaisa" />
-        <Kpi label={`Sale · ${monthShort(month)}`} value={f.sale} sub={`${f.n} day${f.n === 1 ? "" : "s"} recorded`} />
+        <Kpi label={`Sale · ${monthShort(month)}`} value={f.sale + f.credit} sub={`${f.n} day${f.n === 1 ? "" : "s"} · collected ${fmt(f.sale)} + credit ${fmt(f.credit)}`} />
         <Kpi label="Expenses" value={f.exp} sub={`incl. petrol ${fmt(f.petrol)}, advances ${fmt(f.adv)}`} />
         <Kpi label="Salary still to pay" value={toPay} sub={`salary cost ${fmt(salaryCost)}`} />
         <Kpi label="Profit after salary" value={profit} sub="sale + credit + Foodpanda − commission − expenses − salaries" />
