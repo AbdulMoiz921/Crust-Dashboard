@@ -18,10 +18,15 @@ export default function Foodpanda() {
   const [payMsg, setPayMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [askId, setAskId] = useState(null);
+  const [p, setP] = useState("month"); // "month" | "all"
+  const [m, setM] = useState(thisMonth());
 
-  const m = thisMonth(), from = m + "-01", to = monthEnd(m);
-  const owes = fpOwes(D);
-  const ent = fpLedger(D).reverse();
+  const all = p === "all";
+  const from = all ? "0000-01-01" : m + "-01", to = all ? "9999-12-31" : monthEnd(m);
+  const scope = all ? "all time" : monthName(m);
+  const owes = fpOwes(D, all ? undefined : to);
+  // balances are running totals from the very first entry; the filter only picks which rows to show
+  const ent = fpLedger(D).filter(e => e.date >= from && e.date <= to).reverse();
   const isClosed = d => D.closings.get(d.slice(0, 7))?.status === "closed";
 
   async function addSale() {
@@ -55,17 +60,22 @@ export default function Foodpanda() {
     <>
       <div className="card bar">
         <div className="grow"><h2 style={{ margin: 0 }}>Foodpanda</h2><span className="sub">Foodpanda orders, payouts into the bank, commission, and what Foodpanda still owes</span></div>
-        <button className="btn xl" onClick={() => exportFoodpanda(D, today()).then(() => toast("Excel file downloaded"))}>Export to Excel</button>
+        <div className="seg">
+          <button className="chip" aria-pressed={!all} onClick={() => setP("month")}>Month</button>
+          <button className="chip" aria-pressed={all} onClick={() => setP("all")}>All time</button>
+        </div>
+        {!all && <label className="field" style={{ width: 170 }}>Month<input type="month" value={m} onChange={e => e.target.value && setM(e.target.value)} /></label>}
+        <button className="btn xl" onClick={() => exportFoodpanda(D, all ? "" : m, today()).then(() => toast("Excel file downloaded"))}>Export to Excel</button>
       </div>
       <div className="kpis">
-        <Kpi main label="Foodpanda owes us" value={owes} sub="sales not paid out yet" />
-        <Kpi label={`Foodpanda sale · ${monthShort(m)}`} value={fpSold(D.fpsales, from, to)} sub="orders this month" />
-        <Kpi label={`Received in bank · ${monthShort(m)}`} value={fpPaid(D.fppays, from, to)} sub="payouts this month" />
-        <Kpi label={`Commission · ${monthShort(m)}`} value={fpFees(D.fppays, from, to)} sub="kept by Foodpanda" />
+        <Kpi main label="Foodpanda owes us" value={owes} sub={all ? "sales not paid out yet" : `at the end of ${monthName(m)}`} />
+        <Kpi label={`Foodpanda sale · ${all ? "all time" : monthShort(m)}`} value={fpSold(D.fpsales, from, to)} sub={"orders · " + scope} />
+        <Kpi label={`Received in bank · ${all ? "all time" : monthShort(m)}`} value={fpPaid(D.fppays, from, to)} sub={"payouts · " + scope} />
+        <Kpi label={`Commission · ${all ? "all time" : monthShort(m)}`} value={fpFees(D.fppays, from, to)} sub="kept by Foodpanda" />
       </div>
       <div className="emp-grid">
         <div className="card">
-          <h2>History <small>newest first · balance = what Foodpanda owes after each entry</small></h2>
+          <h2>History · {scope} <small>newest first · balance = what Foodpanda owes after each entry</small></h2>
           {ent.length ? (
             <div className="tbl-wrap"><table className="num cards"><thead><tr><th>Date</th><th>Entry</th><th>Note</th><th>Sale</th><th>Into bank</th><th>Commission</th><th>Balance</th><th></th></tr></thead>
               <tbody>{ent.map(e => (
@@ -73,7 +83,7 @@ export default function Foodpanda() {
                   <td>{e.sale ? fmt(e.sale) : ""}</td><td className={e.paid ? "pos" : ""}>{e.paid ? "+ " + fmt(e.paid) : ""}</td><td>{e.fee ? fmt(e.fee) : ""}</td><td><b>{fmt(e.bal)}</b></td>
                   <td>{editable && !isClosed(e.date) && (askId === e.kind + e.id ? <Confirm text="Delete?" yes="Yes" no="No" onYes={() => del(e)} onNo={() => setAskId(null)} /> : <button className="x" aria-label="Delete entry" onClick={() => setAskId(e.kind + e.id)}>×</button>)}</td></tr>
               ))}</tbody></table></div>
-          ) : <Empty>{loaded.fpsales ? "No Foodpanda entries yet. Add the orders total, then the payout when it reaches your bank." : "Loading…"}</Empty>}
+          ) : <Empty>{!loaded.fpsales ? "Loading…" : D.fpsales.size || D.fppays.size ? `No Foodpanda entries in ${scope}.` : "No Foodpanda entries yet. Add the orders total, then the payout when it reaches your bank."}</Empty>}
         </div>
         <div className="view">
           <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} className="view">
