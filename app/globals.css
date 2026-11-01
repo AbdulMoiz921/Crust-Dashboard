@@ -432,3 +432,7 @@ td select{width:auto;padding:5px 8px}
 .credit-row div{display:flex;flex-direction:column;min-width:0}
 .credit-row span{font-size:12px;color:var(--muted)}
 .credit-row.pay>b{color:var(--good)}
+
+/* Capital: choose entries for month closing */
+.cap-pick{margin-bottom:10px;padding:8px 10px;background:var(--surface-2);border-radius:8px}
+.tag.in-closing{background:var(--accent-soft);color:var(--accent);margin:4px 0 0}

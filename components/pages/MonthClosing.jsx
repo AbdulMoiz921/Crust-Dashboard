@@ -93,13 +93,13 @@ export default function MonthClosing() {
           <tr><td>+ Sale received</td><td>{money(f.cash, "+ ")}</td><td>{money(f.bank, "+ ")}</td><td>{money(f.ep, "+ ")}</td><td>{money(f.sale, "+ ")}</td></tr>
           <tr><td>+ Foodpanda payments</td><td>{fmt(0)}</td><td>{money(f.fpPay, "+ ")}</td><td>{fmt(0)}</td><td>{money(f.fpPay, "+ ")}</td></tr>
           <tr><td>+ Customer payments received</td><td>{money(f.cpay.cash, "+ ")}</td><td>{money(f.cpay.bank, "+ ")}</td><td>{money(f.cpay.easypaisa, "+ ")}</td><td>{money(sum3(f.cpay), "+ ")}</td></tr>
-          <tr><td>+ Capital invested</td><td>{money(f.capIn.cash, "+ ")}</td><td>{money(f.capIn.bank, "+ ")}</td><td>{money(f.capIn.easypaisa, "+ ")}</td><td>{money(sum3(f.capIn), "+ ")}</td></tr>
+          <tr><td>+ Capital invested (added to closing)</td><td>{money(f.capIn.cash, "+ ")}</td><td>{money(f.capIn.bank, "+ ")}</td><td>{money(f.capIn.easypaisa, "+ ")}</td><td>{money(sum3(f.capIn), "+ ")}</td></tr>
           <tr><td>− Expenses, petrol &amp; advances</td><td>{money(f.out.cash, "− ")}</td><td>{money(f.out.bank, "− ")}</td><td>{money(f.out.easypaisa, "− ")}</td><td>{money(f.exp, "− ")}</td></tr>
-          <tr><td>− Capital spent &amp; withdrawn</td><td>{money(f.capOut.cash, "− ")}</td><td>{money(f.capOut.bank, "− ")}</td><td>{money(f.capOut.easypaisa, "− ")}</td><td>{money(sum3(f.capOut), "− ")}</td></tr>
+          <tr><td>− Capital spent &amp; withdrawn (added to closing)</td><td>{money(f.capOut.cash, "− ")}</td><td>{money(f.capOut.bank, "− ")}</td><td>{money(f.capOut.easypaisa, "− ")}</td><td>{money(sum3(f.capOut), "− ")}</td></tr>
           <tr><td>− Salaries paid</td><td>{money(paid.cash, "− ")}</td><td>{money(paid.bank, "− ")}</td><td>{money(paid.easypaisa, "− ")}</td><td>{money(sum3(paid), "− ")}</td></tr>
           <tr className="total"><td>Closing balance</td>{["cash", "bank", "easypaisa"].map(k => <td key={k} className={close[k] < 0 ? "neg" : ""}>{fmt(close[k])}</td>)}<td>{fmt(total)}</td></tr>
         </tbody></table></div>
-        <p className="hint">Expenses, rider petrol and advances come out of the account chosen in “Paid from” when they were entered. Pay vendors as an expense in Daily entry; the Vendors page only tracks what you owe. Capital comes from the Capital page. Each employee’s remaining salary comes out of the account you pick below once you tick Paid. Opening balances fill in from last month’s closing.</p>
+        <p className="hint">Expenses, rider petrol and advances come out of the account chosen in “Paid from” when they were entered. Pay vendors as an expense in Daily entry; the Vendors page only tracks what you owe. Capital is only counted when you add an entry to closing on the Capital page. Each employee’s remaining salary comes out of the account you pick below once you tick Paid. Opening balances fill in from last month’s closing.</p>
       </div>
 
       <div className="card">
