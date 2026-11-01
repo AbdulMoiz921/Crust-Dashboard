@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useApp } from "../AppProvider";
 import { Kpi, Empty, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, niceLong, nice, parse, MONTHS, dim, pad } from "@/lib/format";
-import { opExpenses, saleOf, totalSaleOf, creditOn, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, cpayBySrc, creditGiven, totalReceivable, fpSold, fpPaid, fpOwes, leftBySrc, totalOwed, inRange } from "@/lib/calc";
+import { opExpenses, saleOf, totalSaleOf, creditOn, expOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, cpayBySrc, loanBySrc, creditGiven, totalReceivable, fpSold, fpPaid, fpOwes, leftBySrc, totalOwed, inRange } from "@/lib/calc";
 import { exportRange } from "@/lib/excel";
 
 const PRESETS = [["today", "Today"], ["yesterday", "Yesterday"], ["week", "Last 7 days"], ["month", "Month"], ["custom", "Custom"]];
@@ -40,11 +40,11 @@ export default function Dashboard({ openDay }) {
       const o = rid[k] ||= { days: 0, orders: 0, amt: 0, km: 0, petrol: 0 };
       o.days++; o.orders += (rd.orders || []).length; o.amt += riderOrders(rd); o.km += kmOf(rd); o.petrol += petrolOf(rd, r.petrolRate);
     }));
-    const credit = creditGiven(D.cbills, from, to);
+    const credit = creditGiven(D.cbills, from, to), loan = loanBySrc(D.cbills, from, to);
     return {
       // sale = POS total (collected + credit); paid = what actually came into the accounts
       cash, bank, ep, exp, out, paid: cash + bank + ep, credit, sale: cash + bank + ep + credit,
-      cp, cpTot: cp.cash + cp.bank + cp.easypaisa, fpIn, fpSale: fpSold(D.fpsales, from, to),
+      cp, cpTot: cp.cash + cp.bank + cp.easypaisa, loan, loanTot: loan.cash + loan.bank + loan.easypaisa, fpIn, fpSale: fpSold(D.fpsales, from, to),
       cats: Object.entries(cat).filter(c => c[1] > 0).sort((a, b) => b[1] - a[1]),
       riders: Object.entries(rid).sort((a, b) => b[1].amt - a[1].amt),
     };
@@ -52,7 +52,7 @@ export default function Dashboard({ openDay }) {
   const owed = useMemo(() => totalOwed(D), [D.vendors, D.vbills, D.vpays]);
   const recv = useMemo(() => totalReceivable(D), [D.customers, D.cbills, D.cpays]);
   const fpDue = useMemo(() => fpOwes(D), [D.fpsales, D.fppays]);
-  const n = recs.length, net = S.sale - S.exp, inHand = S.cash + S.cp.cash - S.out.cash;
+  const n = recs.length, net = S.sale - S.exp, inHand = S.cash + S.cp.cash - S.out.cash - S.loan.cash;
 
   return (
     <>
@@ -103,11 +103,11 @@ export default function Dashboard({ openDay }) {
           </>}
           {(S.paid || S.exp || S.cpTot || S.fpIn) ? <>
             <h3 className="eyebrow" style={{ margin: "18px 0 6px" }}>Left in each account</h3>
-            <div className="tbl-wrap"><table className="num cards"><thead><tr><th></th><th>Sale</th>{S.cpTot ? <th>Credit paid</th> : null}{S.fpIn ? <th>Foodpanda</th> : null}<th>Expenses</th><th>Left</th></tr></thead><tbody>
+            <div className="tbl-wrap"><table className="num cards"><thead><tr><th></th><th>Sale</th>{S.cpTot ? <th>Credit paid</th> : null}{S.fpIn ? <th>Foodpanda</th> : null}<th>Expenses</th>{S.loanTot ? <th>Cash lent</th> : null}<th>Left</th></tr></thead><tbody>
               {[["Cash", S.cash, "cash"], ["Bank", S.bank, "bank"], ["EasyPaisa", S.ep, "easypaisa"]].map(([l, v, k]) => {
                 const fpk = k === "bank" ? S.fpIn : 0;
-                const left = v + S.cp[k] + fpk - S.out[k];
-                return <tr key={k}><td>{l}</td><td>{fmt(v)}</td>{S.cpTot ? <td>{fmt(S.cp[k])}</td> : null}{S.fpIn ? <td>{fmt(fpk)}</td> : null}<td>{fmt(S.out[k])}</td><td className={left < 0 ? "neg" : ""}><b>{fmt(left)}</b></td></tr>;
+                const left = v + S.cp[k] + fpk - S.out[k] - S.loan[k];
+                return <tr key={k}><td>{l}</td><td>{fmt(v)}</td>{S.cpTot ? <td>{fmt(S.cp[k])}</td> : null}{S.fpIn ? <td>{fmt(fpk)}</td> : null}<td>{fmt(S.out[k])}</td>{S.loanTot ? <td>{fmt(S.loan[k])}</td> : null}<td className={left < 0 ? "neg" : ""}><b>{fmt(left)}</b></td></tr>;
               })}
             </tbody></table></div>
           </> : null}

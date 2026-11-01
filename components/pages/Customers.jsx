@@ -15,7 +15,7 @@ export default function Customers() {
   const editable = canEdit(me, "cust");
   const [sel, setSel] = useState(null);
   const [formOpen, setFormOpen] = useState(null); // null | "new" | "edit"
-  const [credit, setCredit] = useState({ date: today(), customerId: "", desc: "", amt: "" });
+  const [credit, setCredit] = useState({ date: today(), customerId: "", desc: "", amt: "", loan: false, from: "cash" });
   const [pay, setPay] = useState({ date: today(), customerId: "", amt: "", to: "cash", note: "" });
   const [creditMsg, setCreditMsg] = useState("");
   const [payMsg, setPayMsg] = useState("");
@@ -40,8 +40,8 @@ export default function Customers() {
     if (isClosed(credit.date)) return setCreditMsg(monthName(credit.date.slice(0, 7)) + " is closed. Reopen it in Month closing first.");
     setBusy(true);
     try {
-      await saveDoc("cbills", newId("cbills"), { date: credit.date, customerId: c.id, customerName: c.name, desc: credit.desc.trim(), amt, createdAt: new Date().toISOString(), createdBy: me.uid });
-      setCredit(x => ({ ...x, amt: "", desc: "" })); setCreditMsg(""); setSel(c.id); toast(`${fmt(amt)} on credit added for ${c.name}`);
+      await saveDoc("cbills", newId("cbills"), { date: credit.date, customerId: c.id, customerName: c.name, desc: credit.desc.trim() || (credit.loan ? "Cash lent" : ""), amt, ...(credit.loan ? { loan: true, from: credit.from } : {}), createdAt: new Date().toISOString(), createdBy: me.uid });
+      setCredit(x => ({ ...x, amt: "", desc: "" })); setCreditMsg(""); setSel(c.id); toast(credit.loan ? `${fmt(amt)} lent to ${c.name}` : `${fmt(amt)} on credit added for ${c.name}`);
     } catch (e) { setCreditMsg(isDenied(e) ? "You have view-only access." : "Could not save. Try again."); }
     setBusy(false);
   }
@@ -96,14 +96,19 @@ export default function Customers() {
           {formOpen && <div className="card"><CustomerForm key={formOpen + (sel || "")} c={formOpen === "edit" ? selC : null} onDone={id => { setFormOpen(null); if (id) choose(id); else if (id === null) setSel(null); }} /></div>}
           <fieldset disabled={!editable} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} className="view">
             <div className="card">
-              <h2>Food given on credit</h2>
+              <h2>{credit.loan ? "Cash lent" : "Food given on credit"}</h2>
+              <div className="seg" style={{ marginBottom: 10 }}>
+                <button type="button" className="chip" aria-pressed={!credit.loan} onClick={() => setCredit(x => ({ ...x, loan: false }))}>Food on credit</button>
+                <button type="button" className="chip" aria-pressed={credit.loan} onClick={() => setCredit(x => ({ ...x, loan: true }))}>Cash lent</button>
+              </div>
               <div className="form2">
                 <label className="field">Date<input type="date" value={credit.date} onChange={e => setCredit(x => ({ ...x, date: e.target.value }))} /></label>
                 <label className="field">Customer<select value={credit.customerId} onChange={e => setCredit(x => ({ ...x, customerId: e.target.value }))}>{custOptions}</select></label>
                 <label className="field">Amount (Rs)<NumInput value={credit.amt} onChange={v => setCredit(x => ({ ...x, amt: v }))} /></label>
-                <label className="field">Details / bill no.<input type="text" value={credit.desc} placeholder="e.g. 2 large pizzas, bill #45" onChange={e => setCredit(x => ({ ...x, desc: e.target.value }))} /></label>
+                {credit.loan && <label className="field">Paid from<SourceSelect value={credit.from} onChange={v => setCredit(x => ({ ...x, from: v }))} /></label>}
+                <label className={"field" + (credit.loan ? " full" : "")}>{credit.loan ? "Note" : "Details / bill no."}<input type="text" value={credit.desc} placeholder={credit.loan ? "optional" : "e.g. 2 large pizzas, bill #45"} onChange={e => setCredit(x => ({ ...x, desc: e.target.value }))} /></label>
               </div>
-              <div className="bar" style={{ marginTop: 12 }}><span className="grow sub">{creditMsg}</span><button className="btn primary" onClick={addCredit} disabled={busy}>Add credit</button></div>
+              <div className="bar" style={{ marginTop: 12 }}><span className="grow sub">{creditMsg}</span><button className="btn primary" onClick={addCredit} disabled={busy}>{credit.loan ? "Add cash lent" : "Add credit"}</button></div>
             </div>
             <div className="card">
               <h2>Receive payment <small>{payCust ? `${payCust.name} owes ${fmt(bal(payCust).owes)}` : ""}</small></h2>

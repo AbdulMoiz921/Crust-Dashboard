@@ -5,7 +5,7 @@ import { Confirm, NumInput, SourceSelect, Swatch } from "../ui";
 import { fmt, fmtShort, today, addDays, nice, niceLong, num } from "@/lib/format";
 import {
   CATS, DEFAULT_RATE, saleOf, expOf, otherExpOf, petrolDay, petrolOf, kmOf, riderOrders, expBySrc, leftBySrc,
-  creditOn, prevDay, activeEmps, matchEmp, srcKey, capitalPaid, fromCapital, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
+  creditOn, loanBySrc, isLoan, prevDay, activeEmps, matchEmp, srcKey, capitalPaid, fromCapital, creditGiven, cpayBySrc, SOURCES, custBal, byName, fpPaid,
 } from "@/lib/calc";
 import { canEdit } from "@/lib/access";
 import { saveDoc, removeDoc, newId, isDenied } from "@/lib/firebase";
@@ -275,6 +275,7 @@ export default function DailyEntry({ navReq, injectReq }) {
             {capitalPaid(draft) ? <tr><td>Paid from capital (not counted)</td><td>{fmt(capitalPaid(draft))}</td></tr> : null}
             <tr><td>Sale − expense</td><td className={s + cg - e < 0 ? "neg" : ""}>{fmt(s + cg - e)}</td></tr>
             <tr><td>Paid from cash / bank / EasyPaisa</td><td>{fmtShort(x.cash)} / {fmtShort(x.bank)} / {fmtShort(x.easypaisa)}</td></tr>
+            {(() => { const ln = loanBySrc(D.cbills, draft.date, draft.date), t = ln.cash + ln.bank + ln.easypaisa; return t ? <tr><td>Cash lent (cash / bank / EP)</td><td>{fmtShort(ln.cash)} / {fmtShort(ln.bank)} / {fmtShort(ln.easypaisa)}</td></tr> : null; })()}
             {ct ? <tr><td>Credit paid back (cash / bank / EP)</td><td>{fmtShort(cp.cash)} / {fmtShort(cp.bank)} / {fmtShort(cp.easypaisa)}</td></tr> : null}
             {fpDay ? <tr><td>Foodpanda payment into bank</td><td>+ {fmt(fpDay)}</td></tr> : null}
             <tr className="big"><td>Cash in hand</td><td className={l.cash < 0 ? "neg" : ""}>{fmt(l.cash)}</td></tr>
@@ -317,7 +318,7 @@ function SplitStatus({ total, split, onFill }) {
 // food given on credit adds to what the customer owes. Saved straight away to the Customers records.
 function CreditToday({ date, editable }) {
   const { D, me, toast } = useApp();
-  const [mode, setMode] = useState("pay"); // "pay" | "credit"
+  const [mode, setMode] = useState("pay"); // "pay" | "credit" | "loan"
   const [f, setF] = useState({ customerId: "", newName: "", amt: "", to: "cash", note: "" });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -327,6 +328,7 @@ function CreditToday({ date, editable }) {
   const closed = D.closings.get(date.slice(0, 7))?.status === "closed";
   const pays = [...D.cpays.values()].filter(p => p.date === date);
   const credits = [...D.cbills.values()].filter(b => b.date === date);
+  const lent = loanBySrc(D.cbills, date, date);
   const cust = D.customers.get(f.customerId);
   const name = id => D.customers.get(id)?.name;
 
@@ -350,6 +352,9 @@ function CreditToday({ date, editable }) {
       if (mode === "pay") {
         await saveDoc("cpays", newId("cpays"), { date, customerId: id, customerName: cname, amt, to: f.to, note: f.note.trim(), createdAt: at, createdBy: me.uid });
         toast(`Received ${fmt(amt)} from ${cname} in ${SOURCES[f.to]}`);
+      } else if (mode === "loan") {
+        await saveDoc("cbills", newId("cbills"), { date, customerId: id, customerName: cname, desc: f.note.trim() || "Cash lent", amt, loan: true, from: f.to, createdAt: at, createdBy: me.uid });
+        toast(`${fmt(amt)} lent to ${cname} from ${SOURCES[f.to]}`);
       } else {
         await saveDoc("cbills", newId("cbills"), { date, customerId: id, customerName: cname, desc: f.note.trim(), amt, createdAt: at, createdBy: me.uid });
         toast(`${fmt(amt)} on credit added for ${cname}`);
@@ -365,7 +370,7 @@ function CreditToday({ date, editable }) {
 
   const rows = [
     ...pays.map(p => ({ kind: "pay", id: p.id, who: name(p.customerId) || p.customerName, what: "Paid back · " + SOURCES[srcKey(p.to)], note: p.note, amt: +p.amt || 0 })),
-    ...credits.map(b => ({ kind: "credit", id: b.id, who: name(b.customerId) || b.customerName, what: "Food on credit", note: b.desc, amt: +b.amt || 0 })),
+    ...credits.map(b => ({ kind: "credit", id: b.id, who: name(b.customerId) || b.customerName, what: isLoan(b) ? "Cash lent · " + SOURCES[srcKey(b.from)] : "Food on credit", note: b.desc, amt: +b.amt || 0 })),
   ];
   const owes = cust ? custBal(cust, D.cbills, D.cpays).owes : 0;
 
@@ -386,6 +391,7 @@ function CreditToday({ date, editable }) {
         <div className="seg" style={{ margin: "4px 0 10px" }}>
           <button type="button" className="chip" aria-pressed={mode === "pay"} onClick={() => setMode("pay")}>Customer paid back</button>
           <button type="button" className="chip" aria-pressed={mode === "credit"} onClick={() => setMode("credit")}>Food given on credit</button>
+          <button type="button" className="chip" aria-pressed={mode === "loan"} onClick={() => setMode("loan")}>Cash lent</button>
         </div>
         <div className="form2">
           <label className="field">Customer<select value={f.customerId} onChange={e => set("customerId", e.target.value)}>
@@ -395,17 +401,17 @@ function CreditToday({ date, editable }) {
           </select></label>
           {f.customerId === "new" && <label className="field">New customer’s name<input type="text" value={f.newName} onChange={e => set("newName", e.target.value)} placeholder="e.g. Shahid (bank office)" /></label>}
           <label className="field">Amount (Rs)<NumInput value={f.amt} onChange={v => set("amt", v)} /></label>
-          {mode === "pay" && <label className="field">Received in<SourceSelect value={f.to} onChange={v => set("to", v)} /></label>}
-          <label className="field">{mode === "pay" ? "Note" : "Details / bill no."}<input type="text" value={f.note} onChange={e => set("note", e.target.value)} placeholder={mode === "pay" ? "optional" : "e.g. 2 large pizzas, bill #45"} /></label>
+          {mode !== "credit" && <label className="field">{mode === "pay" ? "Received in" : "Paid from"}<SourceSelect value={f.to} onChange={v => set("to", v)} /></label>}
+          <label className="field">{mode === "credit" ? "Details / bill no." : "Note"}<input type="text" value={f.note} onChange={e => set("note", e.target.value)} placeholder={mode === "pay" ? "optional" : "e.g. 2 large pizzas, bill #45"} /></label>
         </div>
         <div className="bar" style={{ marginTop: 10 }}>
           <span className="grow sub">{msg ? <span className="neg">{msg}</span> : cust ? `${cust.name} owes ${fmt(owes)}` : ""}</span>
           {mode === "pay" && cust && owes > 0 && <button type="button" className="btn" onClick={() => set("amt", owes)}>Full amount</button>}
-          <button type="button" className="btn primary" onClick={add} disabled={busy}>{mode === "pay" ? "Add payment" : "Add credit"}</button>
+          <button type="button" className="btn primary" onClick={add} disabled={busy}>{mode === "pay" ? "Add payment" : mode === "loan" ? "Add cash lent" : "Add credit"}</button>
         </div>
       </>}
       {closed && <p className="hint">This month is closed.</p>}
-      <p className="hint">{mode === "pay" ? "A payment is added to this day’s Cash, Bank or EasyPaisa (see Day summary), not to the sale." : "Credit food isn’t money in, so it’s not part of the sale; it’s added to what the customer owes."}</p>
+      <p className="hint">{mode === "pay" ? "A payment is added to this day’s Cash, Bank or EasyPaisa (see Day summary), not to the sale." : mode === "loan" ? "Cash lent isn’t a sale or an expense: it comes out of the account you pick and is added to what the customer owes. When they pay it back, record a payment." : "Credit food is part of the POS total: it fills the Credit part of the sale and is added to what the customer owes."}</p>
     </div>
   );
 }

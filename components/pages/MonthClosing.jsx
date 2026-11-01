@@ -93,6 +93,7 @@ export default function MonthClosing() {
           <tr><td>+ Sale received</td><td>{money(f.cash, "+ ")}</td><td>{money(f.bank, "+ ")}</td><td>{money(f.ep, "+ ")}</td><td>{money(f.sale, "+ ")}</td></tr>
           <tr><td>+ Foodpanda payments</td><td>{fmt(0)}</td><td>{money(f.fpPay, "+ ")}</td><td>{fmt(0)}</td><td>{money(f.fpPay, "+ ")}</td></tr>
           <tr><td>+ Customer payments received</td><td>{money(f.cpay.cash, "+ ")}</td><td>{money(f.cpay.bank, "+ ")}</td><td>{money(f.cpay.easypaisa, "+ ")}</td><td>{money(sum3(f.cpay), "+ ")}</td></tr>
+          {sum3(f.loan) ? <tr><td>− Cash lent to customers</td><td>{money(f.loan.cash, "− ")}</td><td>{money(f.loan.bank, "− ")}</td><td>{money(f.loan.easypaisa, "− ")}</td><td>{money(sum3(f.loan), "− ")}</td></tr> : null}
           <tr><td>+ Capital invested (added to closing)</td><td>{money(f.capIn.cash, "+ ")}</td><td>{money(f.capIn.bank, "+ ")}</td><td>{money(f.capIn.easypaisa, "+ ")}</td><td>{money(sum3(f.capIn), "+ ")}</td></tr>
           <tr><td>− Expenses, petrol &amp; advances</td><td>{money(f.out.cash, "− ")}</td><td>{money(f.out.bank, "− ")}</td><td>{money(f.out.easypaisa, "− ")}</td><td>{money(f.exp, "− ")}</td></tr>
           <tr><td>− Capital spent &amp; withdrawn (added to closing)</td><td>{money(f.capOut.cash, "− ")}</td><td>{money(f.capOut.bank, "− ")}</td><td>{money(f.capOut.easypaisa, "− ")}</td><td>{money(sum3(f.capOut), "− ")}</td></tr>
